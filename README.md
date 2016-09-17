@@ -1,6 +1,6 @@
 # GoldenFramework
 A .net framework library that contains some useful components.
 
-Excuse me my developer friends, i upload soon GoldenFramework source project here...
+Excuse me my developer friends, soon i will upload GoldenFramework source project here...
 
 Thanks;
