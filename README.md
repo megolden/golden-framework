@@ -1,6 +1,6 @@
 # GoldenFramework
 A .net framework library that contains some useful components.
 
-Excuse me my developer friends, soon i will upload GoldenFramework source project here...
+Please refer to 'Golden.Tests' folder and open corespond test file, these test files contains how using components.
 
 Thanks;

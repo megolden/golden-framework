@@ -4,9 +4,9 @@
 *.user
 *.sln.docstates
 *.jtconfig
-*.vs/
-*/obj/
-*/bin/
+**/.vs/
+**/obj/
+**/bin/
 
 ############################
 ## My Excludes #############
