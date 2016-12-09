@@ -19,6 +19,7 @@ source/packages/
 */[Tt]est[Rr]esults/
 
 ## Temporary Excludes ##
+source/Golden.Tests/Golden.Data.Generator.Tests.cs
 source/Golden.Core/
 source/Golden.Data.Extensions/
 source/Golden.Data.Generator/
