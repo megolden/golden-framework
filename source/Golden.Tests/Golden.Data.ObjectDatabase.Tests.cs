@@ -10,13 +10,13 @@ namespace Golden.Tests
     [TestClass]
     public class GoldenDataObjectDatabaseTests
     {
-        private const string ConnectionString = @"Data Source=localhost;Initial Catalog=Test1;Integrated Security=SSPI";
+        private const string ConnectionString = @"Data Source=localhost;Initial Catalog=DBTest;Integrated Security=SSPI";
 
         [TestMethod]
         public void Test()
         {
             //var srv = new Data.ObjectDatabase.Server("localhost");
-            //var db = srv.Database("Test1");
+            //var db = srv.Database("DBTest");
 
             var db = Data.ObjectDatabase.Database.FromConnectionString(ConnectionString);
 

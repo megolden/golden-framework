@@ -153,7 +153,7 @@ namespace Golden.Tests
             Debugger.Break();
 
             //Applying for IQueryable data source.
-            using (var db = DbContextUtilities.Create<Test1DbContext>("localhost", "Test1"))
+            using (var db = DbContextUtilities.Create<DBTestDbContext>("localhost", "DBTest"))
             {
                 var dbQuery =
                     new ObjectQuery<City>()
@@ -191,13 +191,15 @@ namespace Golden.Tests
 
             result = "You are fine today";
             KeyValuePair<int, int> iaResult = result.IndexOfAny(values: new[] { "YOU", "are", "today", "good" }, comparisonType: StringComparison.Ordinal);
-            // iaResult = { Key = 4, Value = 1 }
-            //Key: Index of "are" string in 'Result' variable value.
-            //Value: Index of "are" item in input strings('values' parameter).
-            //Key and Value = -1, if any values not found.
+			// iaResult = { Key = 4, Value = 1 }
+			//Key: Index of "are" string in 'Result' variable value.
+			//Value: Index of "are" item in input strings('values' parameter).
+			//Key and Value = -1, if any values not found.
 
-            #endregion
-            #region Enumerable
+			var strFormat = "Hello {Id}: {Name}".Format(new { Id = 10, Name = "Reza" });
+
+			#endregion
+			#region Enumerable
 
             ICollection<int?> coll = new ObservableCollection<int?>();
             coll.AddRange(new int?[] { 1, 2, null, 5, 3, null, 3 });
@@ -207,7 +209,7 @@ namespace Golden.Tests
             nonNulls.ForEach(v => Debug.WriteLine(v));
 
             int? fi;
-            if (coll.TryFindFirst(i => i > 3, out fi))
+            if (coll.TryFirst(i => i > 3, out fi))
             {
                 Debug.WriteLine(fi.Value); // 5
             }
@@ -225,7 +227,9 @@ namespace Golden.Tests
         [TestMethod]
         public void PersianDateTimeTests()
         {
-            //PersianDateTime is utility data type for GregorianDateTime to/from PersianDateTime conversions.
+			//PersianDateTime is utility data type for GregorianDateTime to/from PersianDateTime conversions.
+
+			var pNow = PersianDateTime.Now;
 
             var clrDate = DateTime.Now;
             //Convert an instance of CLR-DateTime to PersianDateTime
@@ -242,7 +246,7 @@ namespace Golden.Tests
             //writes name of week day
             Debug.WriteLine("MonthName: {0}\nDayName: {1}", faDateTime.MonthName, faDateTime.DayName);
 
-            //well form today date time display :-)
+            //well form date time display :-)
             Debug.WriteLine(PersianDateTime.Parse("1395/10/19").ToString("dddd d MMMM yyyy")); // یکشنبه 19 دی 1395
 
             Debugger.Break();
@@ -265,6 +269,25 @@ namespace Golden.Tests
 
             var wpfIcon = resourceManager.GetIconImageSource("Icons/Home.ico");
             var wpfImage = resourceManager.GetImageSource("Images/VS2010_256.png");
+
+            Debugger.Break();
+        }
+
+        [TestMethod]
+        public void EqualityComparerTest()
+        {
+            var srcList = new List<City>
+            {
+                new City { Id = 1, Name = "A" },
+            };
+            var desList = new List<City>
+            {
+                new City { Id = 1, Name = "B" },
+                new City { Id = 2, Name = "M" },
+                new City { Id = 3, Name = "N" },
+            };
+
+            var diff = desList.Except(srcList, i => i.Id).ToList();
 
             Debugger.Break();
         }

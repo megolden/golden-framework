@@ -8,7 +8,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Golden.Tests</RootNamespace>
     <AssemblyName>Golden.Tests</AssemblyName>
-    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <ProjectTypeGuids>{3AC096D0-A1C2-E12C-1390-A8335801FDAB};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
@@ -16,6 +16,7 @@
     <ReferencePath>$(ProgramFiles)\Common Files\microsoft shared\VSTT\$(VisualStudioVersion)\UITestExtensionPackages</ReferencePath>
     <IsCodedUITest>False</IsCodedUITest>
     <TestProjectType>UnitTest</TestProjectType>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -25,6 +26,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -33,14 +35,15 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="EntityFramework, Version=6.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, processorArchitecture=MSIL">
-      <HintPath>..\packages\EntityFramework.6.1.3\lib\net40\EntityFramework.dll</HintPath>
+      <HintPath>..\packages\EntityFramework.6.1.3\lib\net45\EntityFramework.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="EntityFramework.SqlServer, Version=6.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, processorArchitecture=MSIL">
-      <HintPath>..\packages\EntityFramework.6.1.3\lib\net40\EntityFramework.SqlServer.dll</HintPath>
+      <HintPath>..\packages\EntityFramework.6.1.3\lib\net45\EntityFramework.SqlServer.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="PresentationCore" />
@@ -72,13 +75,14 @@
   </Choose>
   <ItemGroup>
     <Compile Include="Golden.Data.Extensions.Tests\Database\Entities.cs" />
+    <Compile Include="Golden.Data.Extensions.Tests\Database\DBTestDbContext.Niladic.cs" />
     <Compile Include="Golden.Data.Generator.Tests.cs" />
     <Compile Include="Golden.Data.Extensions.Tests\Golden.Data.Extensions.Tests.cs" />
     <Compile Include="Golden.Data.ObjectDatabase.Tests.cs" />
     <Compile Include="Golden.Win.Tests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Golden.Core.Tests.cs" />
-    <Compile Include="Golden.Data.Extensions.Tests\Database\Test1DbContext.cs" />
+    <Compile Include="Golden.Data.Extensions.Tests\Database\DBTestDbContext.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Golden.Core\Golden.Core.csproj">
@@ -103,14 +107,18 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Golden.Data.Extensions.Tests\Database\Test1-Database.sql" />
+    <Content Include="Golden.Data.Extensions.Tests\Database\DBTest-Database.sql" />
     <EmbeddedResource Include="Resources\Files\SampleData.xml" />
     <EmbeddedResource Include="Resources\Icons\Home.ico" />
     <EmbeddedResource Include="Resources\Icons\Magnifier.ico" />
     <EmbeddedResource Include="Resources\Icons\Timing.ico" />
     <EmbeddedResource Include="Resources\Images\VS2010_256.png" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <None Include="App.config" />
+    <Compile Include="Golden.Data.Extensions.Tests\Database\DBTestDbContext.BuiltIn.cs" />
+    <None Include="packages.config" />
+  </ItemGroup>
   <Choose>
     <When Condition="'$(VisualStudioVersion)' == '10.0' And '$(IsCodedUITest)' == 'True'">
       <ItemGroup>

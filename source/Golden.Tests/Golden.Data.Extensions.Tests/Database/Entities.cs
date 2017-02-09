@@ -1,9 +1,44 @@
-﻿using System;
+﻿using Golden.Data.Extensions;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
 namespace Golden.Tests
 {
+	public struct udtIntArray
+	{
+		public int? Value { get; set; }
+
+		public udtIntArray(int value)
+		{
+			this.Value = value;
+		}
+	}
+	public struct udtIntStringArray
+	{
+		public int? Key { get; set; }
+		public string Value { get; set; }
+
+		public udtIntStringArray(int key, string value)
+		{
+			this.Key = key;
+			this.Value = value;
+		}
+	}
+	public struct udtKeyRangeArray
+	{
+		public int? Key { get; set; }
+		public string Min { get; set; }
+		public string Max { get; set; }
+
+		public udtKeyRangeArray(int key, string minValue, string maxValue)
+		{
+			this.Key = key;
+			this.Min = minValue;
+			this.Max = maxValue;
+		}
+	}
+
 	public partial class Student
 	{
 		public virtual int Id { get; set; }
