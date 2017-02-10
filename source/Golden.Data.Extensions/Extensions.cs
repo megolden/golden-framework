@@ -1,4 +1,5 @@
-﻿namespace System.Data.Entity
+﻿
+namespace System.Data.Entity
 {
 	using System;
 	using Golden.Data.Extensions;
@@ -10,7 +11,6 @@
 	using System.Diagnostics;
 	using System.Text;
 	using System.ComponentModel.DataAnnotations.Schema;
-	using ModelConfiguration;
 	using Linq.Expressions;
 	using Golden.Utility;
 	using Common;
@@ -505,15 +505,47 @@
 			return new MultipleResult<T>(results);
 		}
 	}
-	public static class ConfigurationExtensions
-	{
-		public static EntityTypeConfiguration<TEntityType> HasIdentityKey<TEntityType, TKey>(this EntityTypeConfiguration<TEntityType> configuration, Expression<Func<TEntityType, TKey>> keyExpression) where TEntityType : class where TKey : struct
-		{
-			configuration.HasKey(keyExpression);
-			configuration.Property(keyExpression).HasDatabaseGeneratedOption(DatabaseGeneratedOption.Identity);
-			return configuration;
-		}
-	}
+}
+namespace System.Data.Entity.ModelConfiguration
+{
+    using Configuration;
+    using System.ComponentModel.DataAnnotations.Schema;
+    using System.Linq.Expressions;
+
+    public static class ConfigurationExtensions
+    {
+        public static EntityTypeConfiguration<TEntityType> HasIdentityKey<TEntityType, TKey>(this EntityTypeConfiguration<TEntityType> configuration, Expression<Func<TEntityType, TKey>> keyExpression) where TEntityType : class where TKey : struct
+        {
+            configuration.HasKey(keyExpression);
+            configuration.Property(keyExpression).HasDatabaseGeneratedOption(DatabaseGeneratedOption.Identity);
+            return configuration;
+        }
+        public static PrimitivePropertyConfiguration HasColumnType(this PrimitivePropertyConfiguration configuration, SqlDbType columnType)
+        {
+            return configuration.HasColumnType(columnType, -1);
+        }
+        public static PrimitivePropertyConfiguration HasColumnType(this PrimitivePropertyConfiguration configuration, SqlDbType columnType, int sizeOrPrecision)
+        {
+            return configuration.HasColumnType(columnType, sizeOrPrecision, -1);
+        }
+        public static PrimitivePropertyConfiguration HasColumnType(this PrimitivePropertyConfiguration configuration, SqlDbType columnType, int sizeOrPrecision, int scale)
+        {
+            switch (columnType)
+            {
+                case SqlDbType.Udt:
+                case SqlDbType.Structured:
+                    throw new NotSupportedException($"The type '{columnType.ToString()}' not supported.");
+            }
+
+            var typeName = columnType.ToString().ToLower();
+            if (scale != -1 && sizeOrPrecision != -1)
+                typeName = typeName.Append("(", sizeOrPrecision.ToString(), ",", scale.ToString() , ")");
+            else if (sizeOrPrecision != -1)
+                typeName = typeName.Append("(", sizeOrPrecision.ToString(), ")");
+            configuration.HasColumnType(typeName);
+            return configuration;
+        }
+    }
 }
 namespace Golden.Data.Extensions
 {
