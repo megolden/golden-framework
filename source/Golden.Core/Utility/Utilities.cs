@@ -566,7 +566,7 @@ namespace Golden.Utility
             }
             return memberExp.Member.Name;
         }
-        public static string GetMemberName<TSource>(Expression<Func<TSource, object>> member)
+        public static string GetMemberName<TSource, T>(Expression<Func<TSource, T>> member)
         {
             if (member == null) throw new ArgumentNullException(nameof(member));
             var memberExp = member.Body as MemberExpression;
