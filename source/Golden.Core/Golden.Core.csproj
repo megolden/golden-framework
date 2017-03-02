@@ -41,8 +41,9 @@
     <Reference Include="System.Xml.Linq" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Attributes\ExportAttribute.cs" />
-    <Compile Include="Attributes\IgnoreAttribute.cs" />
+    <Compile Include="ExpressionReplacer.cs" />
+    <Compile Include="Annotations\ExportAttribute.cs" />
+    <Compile Include="Annotations\IgnoreAttribute.cs" />
     <Compile Include="BinaryExpression.cs" />
     <Compile Include="ConvertT.cs" />
     <Compile Include="Crc32.cs" />
@@ -54,7 +55,7 @@
     <Compile Include="Range.cs" />
     <Compile Include="EmbeddedResourceManager.cs" />
     <Compile Include="ParameterEventArgs.cs" />
-    <Compile Include="ObjectQuery.cs" />
+    <Compile Include="ObjectQueryable.cs" />
     <Compile Include="Utility\PInvokeHelper.cs" />
     <Compile Include="Utility\ProxyHelper.cs" />
     <Compile Include="Utility\TypeHelper.cs" />

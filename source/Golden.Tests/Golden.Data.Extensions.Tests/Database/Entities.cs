@@ -39,6 +39,7 @@ namespace Golden.Tests
 		}
 	}
 
+    [System.Diagnostics.DebuggerDisplay("{Id}: {Name}")]
 	public partial class Student
 	{
 		public virtual int Id { get; set; }

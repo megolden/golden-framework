@@ -1,5 +1,5 @@
 ﻿using System;
-using Golden.Attributes;
+using Golden.Annotations;
 using Golden.Win.Mvvm;
 using System.Globalization;
 using System.Windows;

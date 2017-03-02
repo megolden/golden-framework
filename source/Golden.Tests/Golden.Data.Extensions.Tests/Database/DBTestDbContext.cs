@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Data.Entity;
 using System.Linq;
 using System.ComponentModel.DataAnnotations.Schema;
-using Golden.Attributes;
+using Golden.Annotations;
 
 namespace Golden.Tests
 {

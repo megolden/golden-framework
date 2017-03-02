@@ -49,7 +49,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Attributes.cs" />
+    <Compile Include="Annotations.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="FunctionConvention.cs" />
     <Compile Include="MetadataMappingProvider.cs" />

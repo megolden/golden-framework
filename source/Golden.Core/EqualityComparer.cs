@@ -7,9 +7,13 @@ using System.Text;
 
 namespace Golden
 {
-    public sealed class EqualityComparer<T> : IEqualityComparer<T>
+    public sealed class EqualityComparer<T> : IEqualityComparer<T>, System.Collections.IEqualityComparer
 	{
-		private readonly Func<T, T, bool> _Comparer;
+        private static readonly Lazy<MethodInfo> mObjGetHashCode = new Lazy<MethodInfo>(() =>
+        {
+            return typeof(object).GetMethod("GetHashCode", BindingFlags.Public | BindingFlags.Instance);
+        });
+        private readonly Func<T, T, bool> _Comparer;
 		private readonly Func<T, int> fnGetHashCode;
 
 		public EqualityComparer(Func<T, T, bool> comparer):this(comparer, null)
@@ -20,7 +24,12 @@ namespace Golden
 			_Comparer = comparer;
 			this.fnGetHashCode = fnGetHashCode;
 		}
-		public bool Equals(T x, T y)
+        bool System.Collections.IEqualityComparer.Equals(object x, object y)
+        {
+            if (!(x is T) || !(y is T)) return false;
+            return Equals((T)x, (T)y);
+        }
+        public bool Equals(T x, T y)
 		{
 			return _Comparer(x, y);
 		}
@@ -29,15 +38,12 @@ namespace Golden
 			if (fnGetHashCode != null) return fnGetHashCode(obj);
 			return obj.GetHashCode();
 		}
-	}
-    public static class EqualityComparer
-    {
-        private static readonly Lazy<MethodInfo> mObjGetHashCode = new Lazy<MethodInfo>(() =>
+        int System.Collections.IEqualityComparer.GetHashCode(object obj)
         {
-            return typeof(object).GetMethod("GetHashCode", BindingFlags.Public | BindingFlags.Instance);
-        });
-
-        public static EqualityComparer<T> ByProperty<T, TProperty>(Expression<Func<T, TProperty>> property)
+            if (!(obj is T)) return 0;
+            return ((IEqualityComparer<T>)this).GetHashCode((T)obj);
+        }
+        public static EqualityComparer<T> ByProperty<TProperty>(Expression<Func<T, TProperty>> property)
         {
             var eqMember = Utility.Utilities.GetMember(property);
             //Comparer

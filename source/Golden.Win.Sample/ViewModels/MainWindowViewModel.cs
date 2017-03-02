@@ -1,4 +1,4 @@
-﻿using Golden.Attributes;
+﻿using Golden.Annotations;
 using Golden.Win.Mvvm;
 using Golden.Win.Mvvm.Mapping;
 using System;

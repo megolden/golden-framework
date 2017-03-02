@@ -8,7 +8,34 @@
 	using System.Text.RegularExpressions;
 	using System.Globalization;
 
-	[Serializable]
+    #region Types
+
+    /// <summary>
+    /// The seasons of year.
+    /// </summary>
+    public enum YearSeason : byte
+    {
+        /// <summary>
+        /// The spring season.
+        /// </summary>
+        Spring = 0,
+        /// <summary>
+        /// The summer season.
+        /// </summary>
+        Summer = 1,
+        /// <summary>
+        /// The autumn season.
+        /// </summary>
+        Autumn = 2,
+        /// <summary>
+        /// The winter season.
+        /// </summary>
+        Winter = 3
+    }
+
+    #endregion
+
+    [Serializable]
 	[TypeConverter(typeof(PersianDateTimeConverter))]
 	public struct PersianDateTime : IFormattable, IComparable<PersianDateTime>, IEquatable<PersianDateTime>, IComparable, IConvertible, IEqualityComparer<PersianDateTime>
 	{
@@ -1222,17 +1249,6 @@
 			else if (value is string)
 				return PersianDateTime.IsValid((string)value);
 			return false;
-		}
-	}
-}
-
-namespace System
-{
-	public static class PersianDateTimeExtensions
-	{
-		public static Golden.PersianDateTime ToPersianDateTime(this DateTime date)
-		{
-			return new Golden.PersianDateTime(date);
 		}
 	}
 }

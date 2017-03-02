@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Golden.Attributes
+namespace Golden.Annotations
 {
     /// <summary>
     /// Maps a class to a type.

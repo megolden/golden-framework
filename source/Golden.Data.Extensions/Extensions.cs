@@ -1,5 +1,4 @@
-﻿
-namespace System.Data.Entity
+﻿namespace System.Data.Entity
 {
 	using System;
 	using Golden.Data.Extensions;
@@ -217,7 +216,7 @@ namespace System.Data.Entity
 				return table;
 			}
 
-			var props = type.GetProperties().Where(pi => pi.CanWrite && !pi.IsDefined<Golden.Attributes.IgnoreAttribute>()).ToList();
+			var props = type.GetProperties().Where(pi => pi.CanWrite && !pi.IsDefined<Golden.Annotations.IgnoreAttribute>()).ToList();
 			var p = Expression.Parameter(type, "obj");
 			var initParamExprs = props.Select(pi =>
 				(pi.PropertyType != typeof(object) ?
@@ -378,7 +377,7 @@ namespace System.Data.Entity
 			var functionAttrib = callingMethod.GetCustomAttribute<FunctionAttribute>();
 
 			var strCmd = new StringBuilder("SELECT ");
-			strCmd.Append(string.Join(", ", typeof(T).GetProperties().Where(pi=>pi.CanWrite && !pi.IsDefined<Golden.Attributes.IgnoreAttribute>()).Select(pi => MetadataMappingProvider.QuoteIdentifier(pi.Name))));
+			strCmd.Append(string.Join(", ", typeof(T).GetProperties().Where(pi=>pi.CanWrite && !pi.IsDefined<Golden.Annotations.IgnoreAttribute>()).Select(pi => MetadataMappingProvider.QuoteIdentifier(pi.Name))));
 			strCmd.Append(" FROM ");
 			if (functionAttrib.Schema != null) strCmd.AppendFormat("{0}.", MetadataMappingProvider.QuoteIdentifier(functionAttrib.Schema));
 			var dbParams = callingMethod.GetParameters().Select((pi, i) => GetDbParameter(pi, parameters[i])).ToArray();
@@ -549,11 +548,14 @@ namespace System.Data.Entity.ModelConfiguration
 }
 namespace Golden.Data.Extensions
 {
-	using System;
-	using System.Data.Entity;
-	using System.Text;
+    using System;
+    using System.Data.Entity;
+    using System.Text;
+    using System.Linq;
+    using System.Linq.Expressions;
+    using System.Reflection;
 
-	public static class DbContextUtilities
+    public static class DbContextUtilities
 	{
 		/// <summary>
 		/// Creates an instance of <see cref="DbContext"/> class with SQL Server connection string (Integrated Security = SSPI).
@@ -584,6 +586,113 @@ namespace Golden.Data.Extensions
 			return (T)Activator.CreateInstance(typeof(T), new object[] { connStr.ToString() });
 		}
 	}
+    public static class ObjectQueryableExtensions
+    {
+        private class DataObjectQueryableVisitor : ExpressionVisitor
+        {
+            private static Lazy<MethodInfo> mLeft = new Lazy<MethodInfo>(() =>
+            {
+                return typeof(DbFunctions).GetMethod(nameof(DbFunctions.Left), BindingFlags.Public | BindingFlags.Static);
+            });
+            private static Lazy<MethodInfo> mRight = new Lazy<MethodInfo>(() =>
+            {
+                return typeof(DbFunctions).GetMethod(nameof(DbFunctions.Right), BindingFlags.Public | BindingFlags.Static);
+            });
+            private static Lazy<MethodInfo> mReverse = new Lazy<MethodInfo>(() =>
+            {
+                return typeof(DbFunctions).GetMethod(nameof(DbFunctions.Reverse), BindingFlags.Public | BindingFlags.Static);
+            });
+            private static Lazy<MethodInfo> mDTTruncateTime = new Lazy<MethodInfo>(() =>
+            {
+                return typeof(DbFunctions).GetMethod(nameof(DbFunctions.TruncateTime), new Type[] { typeof(DateTime?) }, null);
+            });
+            private static Lazy<MethodInfo> mDTOTruncateTime = new Lazy<MethodInfo>(() =>
+            {
+                return typeof(DbFunctions).GetMethod(nameof(DbFunctions.TruncateTime), new Type[] { typeof(DateTimeOffset?) }, null);
+            });
+            private readonly Expression source;
+
+            protected override Expression VisitConstant(ConstantExpression node)
+            {
+                var valueType = node.Value?.GetType();
+                if (valueType != null)
+                {
+                    if (valueType.IsGenericType && valueType == typeof(ObjectQueryable<>).MakeGenericType(valueType.GetGenericArguments()[0]))
+                    {
+                        return base.Visit(source);
+                    }
+                }
+                return base.VisitConstant(node);
+            }
+            protected override Expression VisitMember(MemberExpression node)
+            {
+                if (node.Member.DeclaringType == typeof(DateTime))
+                {
+                    if (node.Member.Name.EqualsOrdinal(nameof(DateTime.Date)))
+                    {
+                        var arg1 = Expression.Convert(node.Expression, mDTTruncateTime.Value.GetParameters()[0].ParameterType);
+                        var newMethodExp = Expression.Call(mDTTruncateTime.Value, arg1);
+                        var retConvertExp = Expression.Convert(newMethodExp, node.Type);
+                        return base.Visit(retConvertExp);
+                    }
+                }
+                else if (node.Member.DeclaringType == typeof(DateTimeOffset))
+                {
+                    if (node.Member.Name.EqualsOrdinal(nameof(DateTimeOffset.Date)))
+                    {
+                        var arg1 = Expression.Convert(node.Expression, mDTOTruncateTime.Value.GetParameters()[0].ParameterType);
+                        var newMethodExp = Expression.Call(mDTOTruncateTime.Value, arg1);
+                        var retConvertExp = Expression.Convert(newMethodExp, node.Type);
+                        return base.Visit(retConvertExp);
+                    }
+                }
+                return base.VisitMember(node);
+            }
+            protected override Expression VisitMethodCall(MethodCallExpression node)
+            {
+                if (node.Method.DeclaringType == typeof(StringExtensions))
+                {
+                    if (node.Method.Name.EqualsOrdinal(nameof(StringExtensions.Left)))
+                    {
+                        var arg2 = Expression.Convert(node.Arguments[1], mLeft.Value.GetParameters()[1].ParameterType);
+                        var newMethodExp = Expression.Call(mLeft.Value, node.Arguments[0], arg2);
+                        return base.VisitMethodCall(newMethodExp);
+                    }
+                    else if (node.Method.Name.EqualsOrdinal(nameof(StringExtensions.Right)))
+                    {
+                        var arg2 = Expression.Convert(node.Arguments[1], mRight.Value.GetParameters()[1].ParameterType);
+                        var newMethodExp = Expression.Call(mRight.Value, node.Arguments[0], arg2);
+                        return base.VisitMethodCall(newMethodExp);
+                    }
+                    else if (node.Method.Name.EqualsOrdinal(nameof(StringExtensions.Reverse)))
+                    {
+                        var newMethodExp = Expression.Call(mReverse.Value, node.Arguments[0]);
+                        return base.VisitMethodCall(newMethodExp);
+                    }
+                }
+                return base.VisitMethodCall(node);
+            }
+            public DataObjectQueryableVisitor(Expression source)
+            {
+                this.source = source;
+            }
+        }
+
+        public static IQueryable<TResult> ApplyDataQuery<TSource, TResult>(this IQueryable<TSource> source, IQueryable<TResult> query)
+        {
+            if (object.ReferenceEquals(source, null))
+                throw new ArgumentNullException(nameof(source));
+
+            if (object.ReferenceEquals(query, null))
+                return (IQueryable<TResult>)source;
+
+            var pSource = Expression.Parameter(typeof(IQueryable<TSource>), "source");
+            var newExp = (new DataObjectQueryableVisitor(pSource)).Visit(query.Expression);
+            var iqExp = Expression.Lambda<Func<IQueryable<TSource>, IQueryable<TResult>>>(newExp, pSource);
+
+            return iqExp.Compile().Invoke(source);
+        }
+    }
 }
 namespace System.Linq
 {

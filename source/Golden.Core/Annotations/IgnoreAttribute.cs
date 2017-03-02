@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Golden.Attributes
+namespace Golden.Annotations
 {
 	[AttributeUsage(AttributeTargets.All, Inherited = false, AllowMultiple = false)]
 	public class IgnoreAttribute : Attribute

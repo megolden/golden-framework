@@ -5,7 +5,7 @@ using System.Reflection.Emit;
 using System.Text;
 using System.Linq;
 using System.Collections.ObjectModel;
-using Golden.Attributes;
+using Golden.Annotations;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Linq.Expressions;

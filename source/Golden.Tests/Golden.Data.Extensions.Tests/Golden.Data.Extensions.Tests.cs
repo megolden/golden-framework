@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.Linq;
 using System.Data.Entity;
 using Golden.Data.Extensions;
-using Golden.Tests.TNiNiSet;
 
 namespace Golden.Tests
 {

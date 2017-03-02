@@ -9,6 +9,8 @@ using System.Linq.Expressions;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Xml.Linq;
+using System.Data.Entity;
+using System.Reflection;
 
 namespace Golden.Tests
 {
@@ -100,36 +102,8 @@ namespace Golden.Tests
         }
 
         [TestMethod]
-        public void ObjectQuery()
+        public void ObjectQueryableTests()
         {
-            //These variables values can be filled from user interface controls.
-            bool nameOrdering = false;
-            bool nameFiltering = true;
-            //...
-
-            //Create an instance of ObjectQuery with an optional predicate expression.
-            var objQuery = new ObjectQuery<Student>(c => c.Id != 0);
-            objQuery.And(c => c.Id > 2);
-            if (nameFiltering) objQuery.Or(c => c.Name == "Hasan");
-
-            //Get the underlying query expression.
-            Expression<Func<Student, bool>> queryExp = objQuery.GetQueryExpression();
-
-            if (nameOrdering)
-            {
-                objQuery.OrderBy(c => c.Name).ThenByDescending(c => c.Id);
-            }
-
-            //Create a new instance of ObjectQuery from previous instance and new result type.
-            var newObjQuery = objQuery.Select(c => new
-            {
-                c.Id,
-                c.Name,
-                UId = c.Name + c.Id
-            })
-            .Where(i => i.Name.Length > 0 && i.UId.StartsWith("H"))
-            .GroupBy(i => i.UId);
-
             //Create test IEnumerable data source.
             var enumDataSource = new List<Student>
             {
@@ -144,29 +118,74 @@ namespace Golden.Tests
                 new Student { Id = 8, Name = "Hamid", BirthDate = DateTime.Today.AddMonths(-41) },
                 new Student { Id = 9, Name = "Reza", BirthDate = DateTime.Today.AddMonths(-62) },
                 new Student { Id = 10, Name = "Rahim", BirthDate = DateTime.Today.AddMonths(-20) },
+                new Student { Id = 12, Name = "ali", BirthDate = DateTime.Today.AddMonths(-21) },
             };
 
-            //Applying to IEnumerable data source.
-            var result = enumDataSource.ApplyQuery(newObjQuery).ToList();
-            //var result = newObjQuery.ApplyTo(enumDataSource).ToList();
+            //These variables values can be filled from user interface controls.
+            bool nameOrdering = false;
+            bool nameFiltering = true;
+            //...
+
+            IQueryable<Student> objQuery = new ObjectQueryable<Student>()
+                .SetUserData("Scenario", "Edit")
+                .SetUserData("CanRelease", true)
+                .Where<Student, string>("Name", name => name.StartsWith("Ha"))
+                .Sort(" Name asc , id descendnig")
+                ;
+
+            //objQuery = objQuery.TakePage(page: 2, count: 10);
+
+            var parameters = ObjectQueryable.GetUserData(objQuery);
+            var list = enumDataSource.ApplyQuery(objQuery).ToList();
 
             Debugger.Break();
 
+            //Using string extension methods.
+            objQuery = objQuery.Where(c => c.Name.Reverse().Left(100).Right(50) == "");
+
+            if (nameOrdering)
+            {
+                objQuery = objQuery.OrderBy(c => c.Name).ThenByDescending(c => c.Id);
+            }
+
+            //Create a new instance of ObjectQuery from previous instance and new result type.
+            var newObjQuery = objQuery.Select(c => new
+            {
+                c.Id,
+                Name = c.Name.Left(2),
+                UId = c.Name + c.Id
+            })
+            .Where(i => i.Name.Length > 0 && i.UId.StartsWith("H"))
+            .GroupBy(i => i.UId);
+
+            //Applying to IEnumerable data source.
+            var result = enumDataSource.ApplyQuery(newObjQuery).ToList();
+
+            Debugger.Break();
+        }
+
+        [TestMethod]
+        public void DataObjectQueryableTests()
+        {
             //Applying for IQueryable data source.
             using (var db = DbContextUtilities.Create<DBTestDbContext>("localhost", "DBTest"))
             {
                 var dbQuery =
-                    new ObjectQuery<City>()
-                    .Where(c => c.Id != 0)
-                    .And(c => c.Name.Contains("m"))
-                    .Include(c => c.Student)
-                    //.Skip(countAccessor: () => db.CurrentUserName().Length) // Call 'Skip' method with an expression as count parameter.
-                    .OrderBy(c => c.Id)
-                    .TakePage(pageNumber: 5, pageSize: 10) // Take page 5 (size of each page is 10)
+                    new ObjectQueryable<Student>()
+                    .SetUserData("Includes", "City")
+                    .Where(c => c.Id < 3)
+                    //.Where(c => c.Name.Left(1) == "S")
+                    //.Where(c=>c.Name.Reverse().Right(1) != "1")
+                    //.Where(c => c.BirthDate.Value.Date == DateTime.Now.Date)
+                    //.Sort("Name DESC, Id ASC")
+                    //.Where<Student, string>("Name", (s, name) => name != s.Id.ToString())
+                    //.Where<Student, string>("Name", name => name.Contains("m"))
+                    //.Skip(countAccessor: () => db.CURRENT_USER().Length) // Call 'Skip' method with an expression as count parameter.
+                    //.OrderBy(c => c.Id).TakePage(page: 5, count: 10) // Take page 5 (size of each page is 10)
                     ;
-
-                //Applying to IQueryable data source.
-                var dataResult = db.City.AsNoTracking().ApplyQuery(dbQuery).ToList();
+                
+                var parameters = dbQuery.GetUserData();
+                var dataResult = db.Student.AsNoTracking().Include(parameters["Includes"].ToString()).ApplyDataQuery(dbQuery).ToList();
 
                 Debugger.Break();
             }
@@ -191,25 +210,25 @@ namespace Golden.Tests
 
             result = "You are fine today";
             KeyValuePair<int, int> iaResult = result.IndexOfAny(values: new[] { "YOU", "are", "today", "good" }, comparisonType: StringComparison.Ordinal);
-			// iaResult = { Key = 4, Value = 1 }
-			//Key: Index of "are" string in 'Result' variable value.
-			//Value: Index of "are" item in input strings('values' parameter).
-			//Key and Value = -1, if any values not found.
+            // iaResult = { Key = 4, Value = 1 }
+            //Key: Index of "are" string in 'Result' variable value.
+            //Value: Index of "are" item in input strings('values' parameter).
+            //Key and Value = -1, if any values not found.
 
-			var strFormat = "Hello {Id}: {Name}".Format(new { Id = 10, Name = "Reza" });
+            var strFormat = "Hello {Id}: {Name}".Format(new { Id = 10, Name = "Reza" });
 
-			#endregion
-			#region Enumerable
+            #endregion
+            #region Enumerable
 
             ICollection<int?> coll = new ObservableCollection<int?>();
             coll.AddRange(new int?[] { 1, 2, null, 5, 3, null, 3 });
 
             var nonNulls = coll.ExcludeNull();
-            
+
             nonNulls.ForEach(v => Debug.WriteLine(v));
 
             int? fi;
-            if (coll.TryFirst(i => i > 3, out fi))
+            if (coll.Any(i => i > 3, out fi))
             {
                 Debug.WriteLine(fi.Value); // 5
             }
@@ -227,9 +246,9 @@ namespace Golden.Tests
         [TestMethod]
         public void PersianDateTimeTests()
         {
-			//PersianDateTime is utility data type for GregorianDateTime to/from PersianDateTime conversions.
+            //PersianDateTime is utility data type for GregorianDateTime to/from PersianDateTime conversions.
 
-			var pNow = PersianDateTime.Now;
+            var pNow = PersianDateTime.Now;
 
             var clrDate = DateTime.Now;
             //Convert an instance of CLR-DateTime to PersianDateTime
@@ -258,12 +277,12 @@ namespace Golden.Tests
             var resourceManager = new EmbeddedResourceManager(typeof(GoldenCoreTests).Assembly, "Golden.Tests.Resources");
 
             var xSampleData = resourceManager.GetFileAsText("Files/SampleData.xml");
-            var marks = 
+            var marks =
                 XDocument.Parse(xSampleData).Root
                 .Elements("Mark")
                 .Select(e => float.Parse(e.Value))
                 .ToArray();
-            
+
             var winIcon = resourceManager.GetIcon("Icons/Home.ico", size: 128);
             var winImage = resourceManager.GetImage("Images/VS2010_256.png");
 

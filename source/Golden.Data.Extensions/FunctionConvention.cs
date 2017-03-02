@@ -91,7 +91,7 @@ namespace Golden.Data.Extensions
 		private static KeyValuePair<MethodInfo, FunctionAttribute>[] DiscoverFunctions(Type containerType)
 		{
 			var result = new List<KeyValuePair<MethodInfo, FunctionAttribute>>();
-			foreach (var m in containerType.GetMethods(BindingFlags.Public | BindingFlags.InvokeMethod | BindingFlags.Instance | BindingFlags.Static).Where(m=>!m.IsDefined<Attributes.IgnoreAttribute>()))
+			foreach (var m in containerType.GetMethods(BindingFlags.Public | BindingFlags.InvokeMethod | BindingFlags.Instance | BindingFlags.Static).Where(m=>!m.IsDefined<Annotations.IgnoreAttribute>()))
 			{
 				var functionAttrib = m.GetCustomAttribute<FunctionAttribute>(true);
 				if (functionAttrib != null)
@@ -668,11 +668,11 @@ namespace Golden.Data.Extensions
 		{
             if (methodInfo.IsDefined(typeof(ExtensionAttribute), false))
             {
-                return methodInfo.GetParameters().Where(p => p.Position != 0 && !p.IsDefined<Attributes.IgnoreAttribute>()).ToArray();
+                return methodInfo.GetParameters().Where(p => p.Position != 0 && !p.IsDefined<Annotations.IgnoreAttribute>()).ToArray();
             }
             else
             {
-                return methodInfo.GetParameters().Where(p => !p.IsDefined<Attributes.IgnoreAttribute>()).ToArray();
+                return methodInfo.GetParameters().Where(p => !p.IsDefined<Annotations.IgnoreAttribute>()).ToArray();
             }
 		}
 		#region Utility
