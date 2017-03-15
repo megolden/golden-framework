@@ -4,6 +4,7 @@
     using System.Reflection;
     using System.Linq;
     using System.Text;
+    using Text.RegularExpressions;
 
     public static class StringExtensions
     {
@@ -22,7 +23,7 @@
             if (str == null) return null;
             return str.Split(new string[] { "\r", "\r\n", "\n" }, options);
         }
-        public static string ReplaceNewLines(this string str, string newValue)
+        public static string ReplaceNewLine(this string str, string newValue)
         {
             if (str.IsNullOrWhiteSpace()) return str;
 
@@ -176,6 +177,14 @@
         public static string FromBase64(this string str, Encoding encoding)
         {
             return Convert.FromBase64String(str).GetString(encoding);
+        }
+        public static bool IsMatch(this string str, string pattern, bool ignoreCase = true, bool invariantCulture = false, bool singleLine = false)
+        {
+            var options = RegexOptions.None;
+            if (ignoreCase) options |= RegexOptions.IgnoreCase;
+            if (invariantCulture) options |= RegexOptions.CultureInvariant;
+            if (singleLine) options |= RegexOptions.Singleline;
+            return Regex.IsMatch(str, pattern, options);
         }
     }
     public static class ReflectionExtensions
@@ -390,6 +399,17 @@ namespace System.Collections.Generic
             source[oldIndex] = source[newIndex];
             source[newIndex] = temp;
         }
+        public static TValue GetValueOrDefault<TKey, TValue>(this IDictionary<TKey, TValue> dictionary, TKey key, TValue defaultValue)
+        {
+            TValue value;
+            if (dictionary.TryGetValue(key, out value))
+                return value;
+            return defaultValue;
+        }
+        public static TValue GetValueOrDefault<TKey, TValue>(this IDictionary<TKey, TValue> dictionary, TKey key)
+        {
+            return dictionary.GetValueOrDefault(key, default(TValue));
+        }
     }
 }
 namespace System.Linq
@@ -405,6 +425,8 @@ namespace System.Linq
 
     public static class EnumerableExtensions
     {
+        private static readonly Lazy<Random> randomInstance = new Lazy<Random>(() => new Random());
+
         public static MemoryStream ToStream(this IEnumerable<byte> bytes, bool writable = true)
         {
             return new MemoryStream(bytes.ToArray(), writable);
@@ -530,6 +552,19 @@ namespace System.Linq
         public static IEnumerable<T> TakePage<T>(this IEnumerable<T> source, int page, int count)
         {
             return source.Skip((page - 1) * count).Take(count);
+        }
+        public static T RandomElement<T>(this IEnumerable<T> source)
+        {
+            var randIndex = randomInstance.Value.Next(source.Count());
+            return source.ElementAt(randIndex);
+        }
+        public static string Join<T>(this IEnumerable<T> collection, string separator)
+        {
+            return string.Join(separator, collection);
+        }
+        public static string Join<T>(this IEnumerable<T> collection)
+        {
+            return collection.Join("");
         }
     }
     public static class QueryableExtensions

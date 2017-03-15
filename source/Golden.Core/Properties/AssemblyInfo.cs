@@ -2,7 +2,7 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-[assembly: AssemblyTitle("Golden Common Library")]
+[assembly: AssemblyTitle("Golden.Core")]
 [assembly: AssemblyDescription("Golden.Core is an open source library that contains some useful components for .net based applications (Win/Web).")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("GoldenPack!")]
@@ -12,5 +12,5 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyCulture("")]
 [assembly: ComVisible(false)]
 [assembly: Guid("eba62972-d879-47cc-ba55-a38b9d1b6ab5")]
-[assembly: AssemblyVersion("2.8.0")]
-[assembly: AssemblyFileVersion("2.8.0")]
+[assembly: AssemblyVersion("2.9.0")]
+[assembly: AssemblyFileVersion("2.9.0")]

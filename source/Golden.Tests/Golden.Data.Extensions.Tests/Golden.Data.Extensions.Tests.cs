@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Data.Entity;
 using Golden.Data.Extensions;
+using System.Data;
 
 namespace Golden.Tests
 {
@@ -89,6 +90,19 @@ namespace Golden.Tests
 				var udtResult3 = db.fnGetMaxName(Enumerable.Range(1, 10).Select(i => new udtIntStringArray(i, "Ali-" + i)).ToArray());
 
 				Debugger.Break();
+            }
+        }
+
+        [TestMethod]
+        public void Extensions()
+        {
+            using (var db = new DBTestDbContext(@"Data Source=localhost;Initial Catalog=DBTest;Integrated Security=True"))
+            {
+                var sourceList = db.City.AsNoTracking().Include(c=>c.Student).ToList();
+
+                var table = sourceList.ToDataTable();
+
+                var myList = table.ToEnumerable<City>();
             }
         }
 	}
