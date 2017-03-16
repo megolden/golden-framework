@@ -5,6 +5,7 @@ using System.Linq;
 using System.Data.Entity;
 using Golden.Data.Extensions;
 using System.Data;
+using System.Collections.Generic;
 
 namespace Golden.Tests
 {
@@ -83,13 +84,27 @@ namespace Golden.Tests
 				});
 				db.SaveChanges();
 
-				NewTests:
+                NewTests:
 
-				var udtResult = db.spTestTypes(Enumerable.Range(1, 10).Select(i => new udtIntArray(i)).ToArray());
-				var udtResult2 = db.fnTestTypes(Enumerable.Range(1, 10).Select(i => new udtIntStringArray(i, "Name: " + i)).ToArray());
-				var udtResult3 = db.fnGetMaxName(Enumerable.Range(1, 10).Select(i => new udtIntStringArray(i, "Ali-" + i)).ToArray());
+                //var udtResult = db.spTestTypes(Enumerable.Range(1, 10).Select(i => new udtIntArray(i)).ToArray());
+                //var udtResult2 = db.fnTestTypes(Enumerable.Range(1, 10).Select(i => new udtIntStringArray(i, "Name: " + i)).ToArray());
+                //var udtResult3 = db.fnGetMaxName(Enumerable.Range(1, 10).Select(i => new udtIntStringArray(i, "Ali-" + i)).ToArray());
+                var filter = new List<udtKeyValueData>
+                {
+                    new udtKeyValueData("id", "0", "<>"),
+                    //new udtKeyValueData("cityName", "'%ma%'", "LIKE"),
+                    new udtKeyValueData("BirthDate", null, "<>"),
+                };
+                var sorting = new List<udtKeyValue>
+                {
+                    new udtKeyValue("name")
+                };
 
-				Debugger.Break();
+                var spResult200 = 
+                    db.spSearchStudent(filter.ToArray(), sorting.ToArray(), null, null)
+                    .ToList();
+
+                Debugger.Break();
             }
         }
 

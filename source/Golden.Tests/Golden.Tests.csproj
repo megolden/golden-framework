@@ -75,15 +75,15 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
-    <Compile Include="Golden.Data.Extensions.Tests\Database\Entities.cs" />
-    <Compile Include="Golden.Data.Extensions.Tests\Database\DBTestDbContext.Niladic.cs" />
+    <Compile Include="DataTests\Database\Entities.cs" />
+    <Compile Include="DataTests\Database\DBTestDbContext.Niladic.cs" />
     <Compile Include="Golden.Data.Generator.Tests.cs" />
-    <Compile Include="Golden.Data.Extensions.Tests\Golden.Data.Extensions.Tests.cs" />
+    <Compile Include="DataTests\DataTests.cs" />
     <Compile Include="Golden.Data.ObjectDatabase.Tests.cs" />
     <Compile Include="Golden.Win.Tests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Golden.Core.Tests.cs" />
-    <Compile Include="Golden.Data.Extensions.Tests\Database\DBTestDbContext.cs" />
+    <Compile Include="DataTests\Database\DBTestDbContext.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Golden.Core\Golden.Core.csproj">
@@ -108,7 +108,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Golden.Data.Extensions.Tests\Database\DBTest-Database.sql" />
+    <Content Include="DataTests\Database\DBTest-Database.sql" />
     <EmbeddedResource Include="Resources\Files\SampleData.xml" />
     <EmbeddedResource Include="Resources\Icons\Home.ico" />
     <EmbeddedResource Include="Resources\Icons\Magnifier.ico" />
@@ -117,7 +117,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
-    <Compile Include="Golden.Data.Extensions.Tests\Database\DBTestDbContext.BuiltIn.cs" />
+    <Compile Include="DataTests\Database\DBTestDbContext.BuiltIn.cs" />
     <None Include="packages.config" />
   </ItemGroup>
   <Choose>

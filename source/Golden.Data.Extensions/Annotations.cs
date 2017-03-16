@@ -275,4 +275,14 @@ namespace Golden.Data.Extensions
 		{
 		}
 	}
+
+    [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = false, Inherited = false)]
+    public class ColumnAttribute : Attribute
+    {
+        public int Order { get; set; }
+
+        public ColumnAttribute()
+        {
+        }
+    }
 }

@@ -4,23 +4,24 @@ using System.Collections.Generic;
 using System.Data.Entity;
 using System.Linq;
 using System.ComponentModel.DataAnnotations.Schema;
+using Golden.Annotations;
 
 namespace Golden.Tests
 {
-	public partial class Test1DbContext : DbContext
+	public partial class DBTestDbContext : DbContext
 	{
 		public virtual DbSet<Student> Student { get; set; }
 		public virtual DbSet<City> City { get; set; }
 		public virtual DbSet<Province> Province { get; set; }
 		public virtual DbSet<StudentView> StudentView { get; set; }
 
-		public Test1DbContext(string connectionString) : base(connectionString)
+		public DBTestDbContext(string connectionString) : base(connectionString)
 		{
 			base.Configuration.AutoDetectChangesEnabled = true;
 			base.Configuration.LazyLoadingEnabled = false;
 			base.Configuration.ProxyCreationEnabled = false;
 			base.Configuration.ValidateOnSaveEnabled = false;
-			Database.SetInitializer<Test1DbContext>(null);
+			Database.SetInitializer<DBTestDbContext>(null);
 		}
 		protected override void OnModelCreating(DbModelBuilder modelBuilder)
 		{
@@ -59,7 +60,7 @@ namespace Golden.Tests
 			//modelBuilder.AddComplexTypes(typeof(Student).Assembly);
 
 			//Function Conventions
-			modelBuilder.AddFunctions<Test1DbContext>(defaultSchema);
+			modelBuilder.AddFunctions<DBTestDbContext>(defaultSchema);
 
             base.OnModelCreating(modelBuilder);
 		}
@@ -75,19 +76,19 @@ namespace Golden.Tests
 			return this.ExecuteScalarFunction<int?>(birthYear);
 		}
 
-		[TableValuedFunction(typeof(Test1DbContext), "dbo.fnGetNames")]
-		public IQueryable<fnGetNamesResult> fnGetNames()
+		[TableValuedFunction(typeof(DBTestDbContext), "dbo.fnGetNames")]
+		public IQueryable<fnGetNamesResult> fnGetNames(int? value)
 		{
-			return this.ExecuteTableValuedFunction<fnGetNamesResult>();
+			return this.ExecuteTableValuedFunction<fnGetNamesResult>(value);
 		}
 
-		[TableValuedFunction(typeof(Test1DbContext), "fnGetStudents")]
+		[TableValuedFunction(typeof(DBTestDbContext), "dbo.fnGetStudents")]
 		public IQueryable<fnGetStudentsResult> fnGetStudents()
 		{
 			return this.ExecuteTableValuedFunction<fnGetStudentsResult>();
 		}
 
-		[StoredProcedure(typeof(Test1DbContext), "spInsertTest")]
+		[StoredProcedure(typeof(DBTestDbContext), "dbo.spInsertTest")]
 		public void spInsertTest(ref int? id, string name)
 		{
 			var _Parameters = new object[] { id, name };
@@ -95,7 +96,7 @@ namespace Golden.Tests
 			id = (int?)_Parameters[0];
 		}
 
-		[StoredProcedure(typeof(Test1DbContext), "spGetStudents")]
+		[StoredProcedure(typeof(DBTestDbContext), "dbo.spGetStudents")]
 		public IEnumerable<spGetStudentsResult> spGetStudents(ref int? count)
 		{
 			var _Parameters = new object[] { count };
@@ -104,7 +105,7 @@ namespace Golden.Tests
 			return _ReturnValue;
 		}
 
-		[StoredProcedure(typeof(Test1DbContext), "spGetNames")]
+		[StoredProcedure(typeof(DBTestDbContext), "dbo.spGetNames")]
 		public IEnumerable<spGetNamesResult> spGetNames(ref int? count)
 		{
 			var _Parameters = new object[] { count };
@@ -113,46 +114,45 @@ namespace Golden.Tests
 			return _ReturnValue;
 		}
 
-		[StoredProcedure(typeof(Test1DbContext), "dbo.spGetNamesAndCityNames")]
-		[ResultType(typeof(spGetNamesAndCityNamesResult2))]
-		public IMultipleResult<spGetNamesAndCityNamesResult> spGetNamesAndCityNames()
+		[StoredProcedure(typeof(DBTestDbContext), "dbo.spFindNamesAndCityNames")]
+		[ResultTypes(typeof(City), typeof(spGetNamesAndCityNamesResult))]
+		public IMultipleResult<spGetNamesAndCityNamesResult> spFindNamesAndCityNames(ref string name)
 		{
-			var _ReturnValue = this.ExecuteMultipleResultProcedure<spGetNamesAndCityNamesResult>();
+			var _Parameters = new object[] { name };
+			var _ReturnValue = this.ExecuteMultipleResultProcedure<spGetNamesAndCityNamesResult>(_Parameters);
+			name = (string)_Parameters[0];
 			return _ReturnValue;
 		}
 
-        #region BuiltinFunctions
+		[StoredProcedure(typeof(DBTestDbContext), nameof(spTestTypes), "dbo")]
+		[Ignore]
+		public IEnumerable<spGetNamesResult> spTestTypes(udtIntArray[] keys)
+		{
+			var _Parameters = new object[] { keys };
+			var _ReturnValue = this.ExecuteProcedure<spGetNamesResult>(_Parameters);
+			return _ReturnValue;
+		}
 
-        [BuiltInFunction("LEFT")]
-        public string LEFT(string expression, int? length)
-        {
-            return this.ExecuteBuiltInFunction<string>(expression, length);
-        }
-        [BuiltInFunction("RIGHT")]
-        public string RIGHT(string expression, int? length)
-        {
-            return this.ExecuteBuiltInFunction<string>(expression, length);
-        }
-        [BuiltInFunction("REVERSE")]
-        public string REVERSE(string expression)
-        {
-            return this.ExecuteBuiltInFunction<string>(expression);
-        }
+		[TableValuedFunction(typeof(DBTestDbContext), nameof(fnTestTypes), "dbo")]
+		[Ignore]
+		public IEnumerable<fnGetNamesResult> fnTestTypes(udtIntStringArray[] dictionary)
+		{
+			return this.ExecuteTableValuedFunctionResult<fnGetNamesResult>(dictionary);
+		}
 
-        #endregion
-        #region NiladicFunctions
+		[ScalarFunction(nameof(fnGetMaxName), "dbo")]
+		[Ignore]
+		public string fnGetMaxName(udtIntStringArray[] values)
+		{
+			return this.ExecuteScalarFunction<string>(values);
+		}
 
-        [NiladicFunction("CURRENT_USER")]
-        public string CURRENT_USER()
+        [StoredProcedure(typeof(DBTestDbContext), "dbo.spSearchStudent")]
+        [Ignore]
+        public IEnumerable<spSearchStudentResult> spSearchStudent(udtKeyValueData[] filter, udtKeyValue[] sorting, int? pageNumber, int? pageSize)
         {
-            return this.ExecuteNiladicFunction<string>();
+            var _Parameters = new object[] { filter, sorting, pageNumber, pageSize };
+            return this.ExecuteProcedure<spSearchStudentResult>(_Parameters);
         }
-        [NiladicFunction("@@ERROR")]
-        public int? ERROR()
-        {
-            return this.ExecuteNiladicFunction<int?>();
-        }
-
-        #endregion
     }
 }

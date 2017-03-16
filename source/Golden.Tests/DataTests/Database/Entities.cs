@@ -5,7 +5,44 @@ using System.Linq;
 
 namespace Golden.Tests
 {
-	public struct udtIntArray
+    public class udtKeyValue
+    {
+        [Column(Order = 0)]
+        public string Key { get; set; }
+        [Column(Order = 1)]
+        public string Value { get; set; }
+
+        public udtKeyValue(string key):this(key, null)
+        {
+        }
+        public udtKeyValue(string key, string value)
+        {
+            this.Key = key;
+            this.Value = value;
+        }
+    }
+    public class udtKeyValueData : udtKeyValue
+    {
+        [Column(Order = 2)]
+        public string Data { get; set; }
+
+        public udtKeyValueData(string key, string value, string data) : base(key,value)
+        {
+            this.Data = data;
+        }
+    }
+    [System.Diagnostics.DebuggerDisplay("{Id}: {Name}")]
+    public class spSearchStudentResult
+    {
+        public int? Id { get; set; }
+        public string Name { get; set; }
+		public DateTime? BirthDate { get; set; }
+		public string CityName { get; set; }
+
+        public int? _TotalRowCount { get; set; }
+    }
+
+    public struct udtIntArray
 	{
 		public int? Value { get; set; }
 

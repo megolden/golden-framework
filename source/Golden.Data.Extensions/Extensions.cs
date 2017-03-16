@@ -11,6 +11,7 @@
 namespace System.Data
 {
     using Golden.Annotations;
+    using Golden.Data.Extensions;
     using Linq.Expressions;
     using System.Collections.Generic;
     using System.Linq;
@@ -18,12 +19,12 @@ namespace System.Data
 
     public static class DataExtensions
     {
-        private static void CreateSchema<T>(DataTable table, out Func<T, object[]> dataRowExtractor)
+        private static Func<T, object[]> CreateSchema<T>(DataTable table)
         {
             var type = typeof(T);
             var objExp = Expression.Parameter(type, "obj");
             var propsExps = new List<Expression>();
-            foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+            foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance).OrderBy(p => (p.GetCustomAttribute<ColumnAttribute>()?.Order).GetValueOrDefault(int.MaxValue)))
             {
                 if (prop.IsDefined<IgnoreAttribute>(true)) continue;
 
@@ -43,7 +44,7 @@ namespace System.Data
                     propsExps.Add(propExp);
                 }
             }
-            dataRowExtractor = Expression.Lambda<Func<T, object[]>>(Expression.NewArrayInit(typeof(object), propsExps), objExp).Compile();
+            return Expression.Lambda<Func<T, object[]>>(Expression.NewArrayInit(typeof(object), propsExps), objExp).Compile();
         }
         private static Func<object[], T> InstanceCreator<T>(DataTable table)
         {
@@ -79,26 +80,33 @@ namespace System.Data
             }
             return Expression.Lambda<Func<object[], T>>(Expression.MemberInit(Expression.New(type), propsBindExps), itemArrayExp).Compile();
         }
-        public static DataTable ToDataTable<T>(this IEnumerable<T> collection)
+        public static DataTable ToDataTable(this Collections.IEnumerable collection)
         {
             if (collection == null)
                 throw new ArgumentNullException(nameof(collection));
 
-            var table = new DataTable(typeof(T).NonGenericName());
-            Func<T, object[]> dataRowExtractor;
-            CreateSchema(table, out dataRowExtractor);
+            var elementType = Golden.Utility.TypeHelper.GetElementType(collection.GetType());
+            var table = new DataTable(elementType.NonGenericName());
+            var mCreateSchema = 
+                typeof(DataExtensions).GetMethod(nameof(DataExtensions.CreateSchema), BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
+                .MakeGenericMethod(elementType);
+            var dataRowExtractor = (Delegate)mCreateSchema.Invoke(null, new object[] { table });
             table.BeginLoadData();
             foreach (var item in collection)
             {
                 var row = table.NewRow();
-                row.ItemArray = dataRowExtractor.Invoke(item);
+                row.ItemArray = (object[])dataRowExtractor.DynamicInvoke(item);
                 table.Rows.Add(row);
             }
             table.EndLoadData();
 
             return table;
         }
-        public static IEnumerable<T> ToEnumerable<T>(this DataTable table)
+        public static DataTable ToDataTable<T>(this IEnumerable<T> collection)
+        {
+            return ((Collections.IEnumerable)collection).ToDataTable();
+        }
+        public static IEnumerable<T> ToEnumerable<T>(this DataTable table) where T : new()
         {
             if (table == null)
                 throw new ArgumentNullException(nameof(table));
@@ -206,7 +214,6 @@ namespace System.Data.Entity
                 .OfType<MethodInfo>()
                 .FirstOrDefault(mi => mi.GetParameters().Length == 1);
         });
-        private static Dictionary<Type, KeyValuePair<PropertyInfo[], Delegate>> _TableValuedTypeCache = new Dictionary<Type, KeyValuePair<PropertyInfo[], Delegate>>();
 
         public static ObjectContext ObjectContext(this DbContext context)
         {
@@ -317,43 +324,6 @@ namespace System.Data.Entity
             if (nonNullable) type = TypeHelper.GetNonNullableType(type);
             return type;
         }
-        private static DataTable MakeTableValuedType(Type type, object value)
-        {
-            KeyValuePair<PropertyInfo[], Delegate> info;
-            if (_TableValuedTypeCache.TryGetValue(type, out info))
-            {
-                var table = new DataTable();
-                table.Columns.AddRange(
-                    info.Key
-                    .Select(pi => new DataColumn(pi.Name, TypeHelper.GetNonNullableType(pi.PropertyType)) { AllowDBNull = TypeHelper.CanBeNull(pi.PropertyType) })
-                    .ToArray());
-                foreach (var item in ((Collections.IEnumerable)value))
-                {
-                    table.Rows.Add(((object[])info.Value.DynamicInvoke(item)).Select(v => (v ?? DBNull.Value)).ToArray());
-                }
-                return table;
-            }
-
-            var props = type.GetProperties().Where(pi => pi.CanWrite && !pi.IsDefined<Golden.Annotations.IgnoreAttribute>()).ToList();
-            var p = Expression.Parameter(type, "obj");
-            var initParamExprs = props.Select(pi =>
-                (pi.PropertyType != typeof(object) ?
-                (Expression)Expression.Convert(Expression.MakeMemberAccess(p, pi), typeof(object)) :
-                Expression.MakeMemberAccess(p, pi)))
-                .ToList();
-            var del = Expression.Lambda(Expression.NewArrayInit(typeof(object), initParamExprs), p).Compile();
-            _TableValuedTypeCache[type] = new KeyValuePair<PropertyInfo[], Delegate>(props.ToArray(), del);
-            return MakeTableValuedType(type, value);
-        }
-        private static ObjectParameter GetObjParameter(ParameterInfo parameter, object value)
-        {
-            var pType = GetRealParameterType(parameter);
-            if (value == null)
-                return new ObjectParameter(parameter.Name, pType);
-            if (Type.GetTypeCode(pType) == TypeCode.Object && pType.IsArray)
-                value = MakeTableValuedType(pType.GetElementType(), value);
-            return new ObjectParameter(parameter.Name, value);
-        }
         private static SqlDbType GetSqlDbType(Type clrType)
         {
             if (clrType == typeof(long))
@@ -388,6 +358,15 @@ namespace System.Data.Entity
                 return SqlDbType.DateTimeOffset;
             return SqlDbType.Variant;
         }
+        private static ObjectParameter GetObjParameter(ParameterInfo parameter, object value)
+        {
+            var pType = GetRealParameterType(parameter);
+            if (value == null)
+                return new ObjectParameter(parameter.Name, pType);
+            if (Type.GetTypeCode(pType) == TypeCode.Object && pType.IsArray)
+                value = ((Collections.IEnumerable)value).ToDataTable();
+            return new ObjectParameter(parameter.Name, value);
+        }
         private static DbParameter GetDbParameter(ParameterInfo parameter, object value)
         {
             var pType = GetRealParameterType(parameter);
@@ -398,7 +377,7 @@ namespace System.Data.Entity
             if (pType.IsArray && pType != typeof(string) && pType != typeof(byte[]))
             {
                 var elemType = pType.GetElementType();
-                param = new SqlClient.SqlParameter(name, MakeTableValuedType(elemType, value));
+                param = new SqlClient.SqlParameter(name, ((Collections.IEnumerable)value).ToDataTable());
                 param.SqlDbType = SqlDbType.Structured;
                 var udtAttrib = elemType.GetCustomAttribute<UserDefinedTypeAttribute>(true);
                 if (udtAttrib != null)
