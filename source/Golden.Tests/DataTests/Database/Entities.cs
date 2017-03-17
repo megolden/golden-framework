@@ -30,6 +30,12 @@ namespace Golden.Tests
         {
             this.Data = data;
         }
+        public udtKeyValueData(string key, string value) : this(key, value, null)
+        {
+        }
+        public udtKeyValueData(string data) : this(null, null, data)
+        {
+        }
     }
     [System.Diagnostics.DebuggerDisplay("{Id}: {Name}")]
     public class spSearchStudentResult

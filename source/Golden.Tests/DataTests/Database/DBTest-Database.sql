@@ -11,8 +11,6 @@ go
 
 create type udtIntArray as table(Value int);
 create type udtIntStringArray as table([Key] int, Value nvarchar(max));
-create type udtKeyValue as table([Key] nvarchar(max), Value nvarchar(max));
-create type udtKeyValueData as table([Key] nvarchar(max), Value nvarchar(max), Data nvarchar(max));
 go
 
 create table Addressing.City
@@ -236,100 +234,3 @@ begin
 	return (select top(1) Value FROM @Values order by [Key] desc);
 end
 go
-
-CREATE PROCEDURE spSearchStudent
-(
-	@Filter udtKeyValueData READONLY,
-	@Sorting udtKeyValue READONLY,
-	@PageNumber int = NULL,
-	@PageSize int = NULL
-)
-AS
-BEGIN
-	SET NOCOUNT ON; --Prevents display record count
-	
-	DECLARE 
-		@Temp nvarchar(max),
-		@CmdColumns nvarchar(max), 
-		@CmdFrom nvarchar(max),
-		@CmdJoins nvarchar(max),
-		@CmdCondition nvarchar(max),
-		@CmdOrders nvarchar(max),
-		@Cmd nvarchar(max);
-	
-	SET @CmdColumns = 'std.Id, std.Name, std.BirthDate, city.Name AS CityName';
-	SET @CmdFrom = 'dbo.Student AS std';
-	SET @CmdJoins = 'LEFT JOIN Addressing.City AS city ON std.CityRef = city.Id';
-
-	--Filter
-	IF (EXISTS(SELECT NULL FROM @Filter)) BEGIN
-		SET @Temp = 
-		(
-			SELECT CONCAT(' AND ', 
-				(
-					CASE 
-						WHEN filter.[Key] IN('Id', 'Name', 'BirthDate') THEN CONCAT('std.', filter.[Key])
-						WHEN filter.[Key] = 'CityName' THEN 'city.Name'
-					END
-				), ' ', 
-				(
-					CASE 
-						WHEN filter.Value IS NULL AND filter.Data = '=' THEN 'IS NULL'
-						WHEN filter.Value IS NULL AND filter.Data = '<>' THEN 'IS NOT NULL'
-						ELSE CONCAT(filter.Data, ' ', filter.Value)
-					END	
-				))
-			FROM @Filter AS filter
-			FOR XML PATH('')
-		)
-		SET @Temp = CAST('<value>'+ SUBSTRING(@Temp, 6, 4000) + '</value>' AS XML).value('/value[1]', 'nvarchar(max)')
-		IF (@Temp IS NOT NULL AND @Temp <> '')
-			SET @CmdCondition = CONCAT(@CmdCondition + ' AND ', @Temp);
-	END
-	
-	--Sorting
-	IF (EXISTS(SELECT NULL FROM @Sorting)) BEGIN
-		SET @Temp = 
-		(
-			SELECT CONCAT(', ', 
-				(
-					CASE 
-						WHEN sort.[Key] IN('Id', 'Name', 'BirthDate') THEN CONCAT('std.', sort.[Key])
-						WHEN sort.[Key] = 'CityName' THEN 'city.Name'
-					END
-				), 
-				(CASE WHEN LEFT(sort.Value, 1) = 'D' THEN ' DESC' ELSE ' ASC' END))
-			FROM @Sorting AS sort
-			FOR XML PATH('')
-		)
-		SET @CmdOrders = CONCAT(@CmdOrders + ', ', SUBSTRING(@Temp, 3, 4000));
-	END
-
-	--Paging
-	IF (@PageNumber IS NULL)
-		SET @CmdColumns = CONCAT(@CmdColumns, ', NULL AS _TotalRowCount');
-	ELSE BEGIN
-		IF (@CmdOrders IS NULL) SET @CmdOrders = 'std.Id';
-		SET @CmdColumns = CONCAT(@CmdColumns, ', COUNT(*) OVER() AS _TotalRowCount');
-		SET @CmdOrders = CONCAT(@CmdOrders, ' OFFSET ', (@PageNumber - 1) * @PageSize, ' ROWS FETCH NEXT ', @PageSize, ' ROWS ONLY');
-	END
-
-	SET @Cmd = CONCAT
-	(
-		'SELECT ', 
-		@CmdColumns,
-		NCHAR(13),
-		'FROM ', 
-		@CmdFrom, 
-		NCHAR(13),
-		@CmdJoins + NCHAR(13), 
-		'WHERE ' + @CmdCondition + NCHAR(13),
-		'ORDER BY ' + @CmdOrders
-	);
-
-	--Results
-	EXECUTE sp_executesql @Cmd;
-	
-	--SELECT @Cmd; --for test only
-END
-GO

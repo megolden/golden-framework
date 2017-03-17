@@ -91,9 +91,10 @@ namespace Golden.Tests
                 //var udtResult3 = db.fnGetMaxName(Enumerable.Range(1, 10).Select(i => new udtIntStringArray(i, "Ali-" + i)).ToArray());
                 var filter = new List<udtKeyValueData>
                 {
-                    new udtKeyValueData("id", "0", "<>"),
-                    //new udtKeyValueData("cityName", "'%ma%'", "LIKE"),
-                    new udtKeyValueData("BirthDate", null, "<>"),
+                    new udtKeyValueData("Id", "0", "<>"),
+					new udtKeyValueData("AND"),
+                    //new udtKeyValueData("cityName", "%ma%", "LIKE"),
+                    new udtKeyValueData("BirthDate", "2009/10/09", "<>"),
                 };
                 var sorting = new List<udtKeyValue>
                 {
