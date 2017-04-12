@@ -538,6 +538,8 @@ namespace System.Data.Entity
                 string.Format("{0}.{1}", MetadataMappingProvider.QuoteIdentifier(functionAttrib.Schema), MetadataMappingProvider.QuoteIdentifier(functionAttrib.FunctionName)) :
                 MetadataMappingProvider.QuoteIdentifier(functionAttrib.FunctionName));
             cmd.CommandType = CommandType.StoredProcedure;
+            if (context.Database.CurrentTransaction != null)
+                cmd.Transaction = context.Database.CurrentTransaction.UnderlyingTransaction;
             var cmdParams = methodParams.Select((pi, i) => GetDbParameter(pi, parameters[i])).ToList();
             cmdParams.ForEach(p => cmd.Parameters.Add(p));
 
