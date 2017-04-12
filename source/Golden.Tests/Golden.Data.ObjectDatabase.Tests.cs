@@ -15,17 +15,28 @@ namespace Golden.Tests
         [TestMethod]
         public void Test()
         {
+            var db = Data.ObjectDatabase.Database.FromConnectionString(ConnectionString);
+
             //var srv = new Data.ObjectDatabase.Server("localhost");
             //var db = srv.Database("DBTest");
 
-            var db = Data.ObjectDatabase.Database.FromConnectionString(ConnectionString);
+            goto NewTests;
 
             var table = db.Table("Student", "dbo");
             var foreignKeys = table.ForeignKeys.ToList();
             var column = table.Columns.First();
             Debug.WriteLine(column.DataType.GetClrType().FullName);
 
-            var views = db.Views.ToList();
+            //var views = db.Views.ToList();
+
+            NewTests:
+
+            //var udTypes = db.UserDefinedTypes.ToList();
+
+            var sp1 = db.StoredProcedure("spSearchStudent");
+            //var spRets = sp1.OutputResults.ToList();
+            var paramss = sp1.Parameters.ToList();
+
             var spResults = db.StoredProcedures[2].OutputResults;
             var fnTableValued = db.UserDefinedFunctions[0].Columns;
 

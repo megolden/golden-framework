@@ -213,6 +213,15 @@ begin
 	select 'Value: ' + CONVERT(nvarchar, Value) AS Name from @Keys
 end
 go
+create procedure spTestTypes2
+(
+	@Keys udtIntArray readonly
+)
+AS
+begin
+	select 'Value: ' + CONVERT(nvarchar, Value) AS Name from @Keys
+end
+go
 create function fnTestTypes
 (
 	@Dictionary udtIntStringArray readonly

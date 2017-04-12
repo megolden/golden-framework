@@ -94,7 +94,7 @@ namespace Golden.Data.Extensions
 			foreach (var m in containerType.GetMethods(BindingFlags.Public | BindingFlags.InvokeMethod | BindingFlags.Instance | BindingFlags.Static).Where(m=>!m.IsDefined<Annotations.IgnoreAttribute>()))
 			{
 				var functionAttrib = m.GetCustomAttribute<FunctionAttribute>(true);
-				if (functionAttrib != null)
+				if (functionAttrib != null && !(functionAttrib is StoredProcedureAttribute))
 				{
 					result.Add(new KeyValuePair<MethodInfo, FunctionAttribute>(m, functionAttrib));
 				}

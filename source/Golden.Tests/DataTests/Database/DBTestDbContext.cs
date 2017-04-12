@@ -89,14 +89,15 @@ namespace Golden.Tests
 		}
 
 		[StoredProcedure(typeof(DBTestDbContext), "dbo.spInsertTest")]
-		public void spInsertTest(ref int? id, string name)
+		public void spInsertTest(ref int? id, string name, ref int? @class)
 		{
-			var _Parameters = new object[] { id, name };
+			var _Parameters = new object[] { id, name, @class };
 			this.ExecuteProcedure(_Parameters);
-			id = (int?)_Parameters[0];
-		}
+			id =  (int?)_Parameters[0];
+			@class = (int?)_Parameters[2];
+        }
 
-		[StoredProcedure(typeof(DBTestDbContext), "dbo.spGetStudents")]
+        [StoredProcedure(typeof(DBTestDbContext), "dbo.spGetStudents")]
 		public IEnumerable<spGetStudentsResult> spGetStudents(ref int? count)
 		{
 			var _Parameters = new object[] { count };
@@ -115,17 +116,16 @@ namespace Golden.Tests
 		}
 
 		[StoredProcedure(typeof(DBTestDbContext), "dbo.spFindNamesAndCityNames")]
-		[ResultTypes(typeof(City), typeof(spGetNamesAndCityNamesResult))]
-		public IMultipleResult<spGetNamesAndCityNamesResult> spFindNamesAndCityNames(ref string name)
+		[ResultTypes(typeof(spGetNamesAndCityNamesResult), typeof(City))]
+		public IMultipleResult spFindNamesAndCityNames(ref string name)
 		{
 			var _Parameters = new object[] { name };
-			var _ReturnValue = this.ExecuteMultipleResultProcedure<spGetNamesAndCityNamesResult>(_Parameters);
+			var _ReturnValue = this.ExecuteMultipleResultProcedure(_Parameters);
 			name = (string)_Parameters[0];
 			return _ReturnValue;
 		}
 
 		[StoredProcedure(typeof(DBTestDbContext), nameof(spTestTypes), "dbo")]
-		[Ignore]
 		public IEnumerable<spGetNamesResult> spTestTypes(udtIntArray[] keys)
 		{
 			var _Parameters = new object[] { keys };
@@ -148,7 +148,6 @@ namespace Golden.Tests
 		}
 
         [StoredProcedure(typeof(DBTestDbContext), "dbo.spSearchStudent")]
-        [Ignore]
         public IEnumerable<spSearchStudentResult> spSearchStudent(udtKeyValueData[] filter, udtKeyValue[] sorting, int? pageNumber, int? pageSize)
         {
             var _Parameters = new object[] { filter, sorting, pageNumber, pageSize };

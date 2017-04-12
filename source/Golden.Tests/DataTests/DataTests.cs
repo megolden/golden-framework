@@ -18,7 +18,7 @@ namespace Golden.Tests
 			using (var db = new DBTestDbContext(@"Data Source=localhost;Initial Catalog=DBTest;Integrated Security=True"))
             {
                 goto NewTests;
-
+                
                 //delete record(s) with query.
                 var deleteResult = db.City
                     .Where(i => i.Id == 60000)
@@ -57,21 +57,23 @@ namespace Golden.Tests
 
                 //using SQL Server niladic function in query
                 var fnResult8 = db.fnGetNames(null).Select(r => db.CURRENT_USER()).ToList();
+                
 
                 //call db stored procedure with no result.
-                int? id = 700;
-                db.spInsertTest(ref id, "Aminzadeh");
+                int? id = 1006;
+                int? cls = null;
+                db.spInsertTest(ref id, "Aminzadeh", ref cls);
 
 				//call db stored procedure with single result.
 				int? count = null;
 				var spResult = db.spGetStudents(ref count).ToList();
 
-				//call db stored procedure with multiple results.
-				string searchKey = "i";
-				var spMultiResults = db.spFindNamesAndCityNames(ref searchKey);
-				var spMRResult1 = spMultiResults.GetResult<spGetNamesAndCityNamesResult>(0).ToList();
-				var spMRResult2 = spMultiResults.GetResult<City>(1).ToList();
-				var spMRResult3 = spMultiResults.GetResult<spGetNamesAndCityNamesResult>(2).ToList();
+                //call db stored procedure with multiple results.
+                string searchKey = "i";
+                var spMultiResults = db.spFindNamesAndCityNames(ref searchKey);
+                var spMRResult1 = spMultiResults.GetResult<spGetNamesAndCityNamesResult>(0).ToList();
+                var spMRResult2 = spMultiResults.GetResult<City>(1).ToList();
+                //var spMRResult3 = spMultiResults.GetResult<spGetNamesAndCityNamesResult>(2).ToList();
 
 				db.City.Delete(1008);
 				db.SaveChanges();
@@ -86,6 +88,9 @@ namespace Golden.Tests
 
                 NewTests:
 
+                var trans = db.Database.BeginTransaction();
+                db.LockTable<Student>();
+                trans.Rollback();
                 //var udtResult = db.spTestTypes(Enumerable.Range(1, 10).Select(i => new udtIntArray(i)).ToArray());
                 //var udtResult2 = db.fnTestTypes(Enumerable.Range(1, 10).Select(i => new udtIntStringArray(i, "Name: " + i)).ToArray());
                 //var udtResult3 = db.fnGetMaxName(Enumerable.Range(1, 10).Select(i => new udtIntStringArray(i, "Ali-" + i)).ToArray());

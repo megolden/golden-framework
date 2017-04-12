@@ -186,6 +186,15 @@
             if (singleLine) options |= RegexOptions.Singleline;
             return Regex.IsMatch(str, pattern, options);
         }
+        public static string SurroundWith(this string str, char value)
+        {
+            return str.SurroundWith(value.ToString());
+        }
+        public static string SurroundWith(this string str, string value)
+        {
+            if (value.IsNullOrEmpty()) return str;
+            return string.Concat(value, str, value);
+        }
     }
     public static class ReflectionExtensions
     {
@@ -342,6 +351,18 @@ namespace System.IO
         public static MemoryStream ToStream(this IEnumerable<byte> bytes, bool writable)
         {
             return new MemoryStream(bytes.ToArray(), writable);
+        }
+        public static string CombinePath(this string path, params string[] otherPaths)
+        {
+            return Path.Combine((new[] { path }).Concat(otherPaths).ToArray());
+        }
+        public static string GetExtension(this string path)
+        {
+            return Path.GetExtension(path);
+        }
+        public static string GetFileName(this string path)
+        {
+            return Path.GetFileName(path);
         }
     }
 }
@@ -551,6 +572,8 @@ namespace System.Linq
         }
         public static IEnumerable<T> TakePage<T>(this IEnumerable<T> source, int page, int count)
         {
+            if (page == 1)
+                return source.Take(count);
             return source.Skip((page - 1) * count).Take(count);
         }
         public static T RandomElement<T>(this IEnumerable<T> source)
@@ -643,6 +666,8 @@ namespace System.Linq
         }
         public static IQueryable<T> TakePage<T>(this IQueryable<T> source, int page, int count)
         {
+            if (page == 1)
+                return source.Take(count);
             return source.Skip((page - 1) * count).Take(count);
         }
         public static IQueryable<T> Where<T, TProperty>(this IQueryable<T> source, string propertyName, Expression<Func<TProperty, bool>> predicate)
@@ -664,6 +689,9 @@ namespace System.Linq
         }
         public static IQueryable<T> Sort<T, TProperty>(this IQueryable<T> source, string sortDescription, IComparer<TProperty> comparer)
         {
+            if (sortDescription.IsNullOrEmpty())
+                return source;
+
             var sourceType = typeof(T);
             var propType = typeof(TProperty);
             var properties = sortDescription.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)

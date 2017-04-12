@@ -6,13 +6,13 @@ using System.Text;
 
 namespace Golden.Data.Extensions
 {
-	public interface IMultipleResult<T>
+	public interface IMultipleResult
 	{
 		int ResultCount { get; }
 
 		IEnumerable<TResult> GetResult<TResult>(int index);
 	}
-	internal class MultipleResult<T> : IMultipleResult<T>
+	internal class MultipleResult : IMultipleResult
 	{
 		private readonly List<System.Collections.IList> _Results;
 

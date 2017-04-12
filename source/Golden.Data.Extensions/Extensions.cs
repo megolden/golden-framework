@@ -87,7 +87,7 @@ namespace System.Data
 
             var elementType = Golden.Utility.TypeHelper.GetElementType(collection.GetType());
             var table = new DataTable(elementType.NonGenericName());
-            var mCreateSchema = 
+            var mCreateSchema =
                 typeof(DataExtensions).GetMethod(nameof(DataExtensions.CreateSchema), BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
                 .MakeGenericMethod(elementType);
             var dataRowExtractor = (Delegate)mCreateSchema.Invoke(null, new object[] { table });
@@ -317,6 +317,14 @@ namespace System.Data.Entity
 
             return context.Database.ExecuteSqlCommand(TransactionalBehavior.DoNotEnsureTransaction, cmdStr);
         }
+        public static string GetTableName<TEntity>(this DbContext context) where TEntity : class
+        {
+            return context.GetTableName(typeof(TEntity));
+        }
+        public static string GetTableName(this DbContext context, Type entityType)
+        {
+            return MetadataMappingProvider.DefaultInstance.GetEntityMap(entityType, context.ObjectContext()).TableName;
+        }
         private static Type GetRealParameterType(ParameterInfo parameter, bool nonNullable = true)
         {
             var type = parameter.ParameterType;
@@ -488,63 +496,36 @@ namespace System.Data.Entity
         public static void ExecuteProcedure(this DbContext context, object[] parameters = null)
         {
             var callingMethod = (new StackFrame(1, false)).GetMethod();
-            InternalExecuteProcedure<VoidResult>(context, callingMethod, parameters);
+            InternalExecuteMultipleResultProcedure(context, callingMethod, parameters);
         }
         public static IEnumerable<T> ExecuteProcedure<T>(this DbContext context, object[] parameters = null)
         {
             var callingMethod = (new StackFrame(1, false)).GetMethod();
-            return InternalExecuteProcedure<T>(context, callingMethod, parameters);
+            return InternalExecuteMultipleResultProcedure(context, callingMethod, parameters).GetResult<T>(0);
         }
-        public static IMultipleResult<T> ExecuteMultipleResultProcedure<T>(this DbContext context, object[] parameters = null)
+        public static IMultipleResult ExecuteMultipleResultProcedure(this DbContext context, object[] parameters = null)
         {
             var callingMethod = (new StackFrame(1, false)).GetMethod();
-            return InternalExecuteMultipleResultProcedure<T>(context, callingMethod, parameters);
+            return InternalExecuteMultipleResultProcedure(context, callingMethod, parameters);
         }
-        private static IEnumerable<T> InternalExecuteProcedure<T>(DbContext context, MethodBase functionMethod, object[] parameters)
-        {
-            return InternalExecuteMultipleResultProcedure<T>(context, functionMethod, parameters).GetResult<T>(0).ToList();
-            #region OLDCode
-            /*
-			if (parameters == null) parameters = new object[0];
-
-			var methodParams = functionMethod.GetParameters();
-			var functionAttrib = functionMethod.GetCustomAttribute<FunctionAttribute>();
-
-			var _ObjParameters = methodParams.Select((p, i) => GetObjParameter(p, parameters[i])).ToArray();
-
-			object _ReturnValue = null;
-			if (typeof(T) == typeof(VoidResult))
-			{
-				var procRetValue = context.ObjectContext()
-					.ExecuteFunction(string.Format("{0}.{1}", functionAttrib.NamespaceName, functionAttrib.FunctionName), _ObjParameters);
-				_ReturnValue = new[] { new VoidResult(procRetValue) };
-			}
-			else
-			{
-				_ReturnValue = context.ObjectContext()
-					.ExecuteFunction<T>(string.Format("{0}.{1}", functionAttrib.NamespaceName, functionAttrib.FunctionName), _ObjParameters)
-					.ToList();
-			}
-
-			for (int i = 0; i < _ObjParameters.Length; i++)
-			{
-				var objParam = _ObjParameters[i];
-				var mParam = methodParams[i];
-				if (mParam.IsOut || mParam.ParameterType.IsByRef) parameters[i] = objParam.Value;
-			}
-
-			return (IEnumerable<T>)_ReturnValue;
-			*/
-            #endregion
-        }
-        private static IMultipleResult<T> InternalExecuteMultipleResultProcedure<T>(this DbContext context, MethodBase functionMethod, object[] parameters)
+        private static IMultipleResult InternalExecuteMultipleResultProcedure(DbContext context, MethodBase functionMethod, object[] parameters)
         {
             var methodParams = functionMethod.GetParameters();
             var functionAttrib = functionMethod.GetCustomAttribute<FunctionAttribute>();
             var resultTypes = functionMethod.GetCustomAttribute<ResultTypesAttribute>()?.Types;
+            if (resultTypes == null)
+            {
+                resultTypes = Type.EmptyTypes;
+                var mi = functionMethod as MethodInfo;
+                if (mi != null && mi.ReturnType != null && mi.ReturnType.IsGenericType && typeof(Collections.IEnumerable).IsAssignableFrom(mi.ReturnType))
+                {
+                    var genArgs = mi.ReturnType.GetGenericArguments();
+                    if (genArgs.Length == 1) resultTypes = genArgs;
+                }
+            }
 
-            var currentResult = new List<T>();
-            var results = new List<System.Collections.IList> { currentResult };
+            //var currentResult = new List<object>();
+            var results = new List<Collections.IList>();// { currentResult };
 
             // If using Code First we need to make sure the model is built before we open the connection 
             // This isn't required for models created with the EF Designer 
@@ -565,31 +546,46 @@ namespace System.Data.Entity
             {
                 if (!prevConn) context.Database.Connection.Open();
 
-                using (var reader = cmd.ExecuteReader())
+                if (resultTypes.Length > 0)
                 {
-                    currentResult.AddRange(context.ObjectContext().Translate<T>(reader).ToList());
-
-                    int resultTypeIndex = 0;
-                    while (reader.NextResult())
+                    using (var reader = cmd.ExecuteReader())
                     {
-                        var objRet = mTranslate.Value.MakeGenericMethod(resultTypes[resultTypeIndex])
-                            .Invoke(context.ObjectContext(), new object[] { reader });
-                        var ilist = mEnumerableToList.Value.MakeGenericMethod(resultTypes[resultTypeIndex])
-                            .Invoke(null, new object[] { objRet }) as System.Collections.IList;
+                        int resultTypeIndex = 0;
+                        Collections.IList currResult = null;
 
-                        results.Add(ilist);
+                        do
+                        {
+                            if (resultTypeIndex >= resultTypes.Length) break;
 
-                        resultTypeIndex++;
+                            var resultType = resultTypes[resultTypeIndex];
+                            if (reader.HasRows)
+                            {
+                                var objRet = mTranslate.Value.MakeGenericMethod(resultType).Invoke(context.ObjectContext(), new object[] { reader });
+                                currResult = (Collections.IList)mEnumerableToList.Value.MakeGenericMethod(resultType).Invoke(null, new object[] { objRet });
+                            }
+                            else
+                            {
+                                currResult = (Collections.IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(resultType));
+                            }
+                            results.Add(currResult);
+
+                            resultTypeIndex++;
+
+                        } while (reader.NextResult());
+
+                        if (!reader.IsClosed) reader.Close();
                     }
-
-                    if (!reader.IsClosed) reader.Close();
                 }
-
+                else
+                {
+                    cmd.ExecuteNonQuery();
+                }
                 methodParams.ForEach((pi, i) =>
                 {
                     if (pi.IsOut || pi.ParameterType.IsByRef)
                     {
-                        parameters[i] = cmdParams[i].Value;
+                        var pType = (pi.ParameterType.IsByRef ? pi.ParameterType.GetElementType() : pi.ParameterType);
+                        parameters[i] = Golden.Utility.Utilities.Convert(pType, cmdParams[i].Value, true);
                     }
                 });
             }
@@ -598,7 +594,7 @@ namespace System.Data.Entity
                 if (!prevConn) context.Database.Connection.Close();
             }
 
-            return new MultipleResult<T>(results);
+            return new MultipleResult(results);
         }
     }
 }
@@ -616,30 +612,38 @@ namespace System.Data.Entity.ModelConfiguration
             configuration.Property(keyExpression).HasDatabaseGeneratedOption(DatabaseGeneratedOption.Identity);
             return configuration;
         }
-        public static PrimitivePropertyConfiguration HasColumnType(this PrimitivePropertyConfiguration configuration, SqlDbType columnType)
+        private static string GetSqlColumnTypeName(SqlDbType sqlColumnType, bool exceptionOnInvalidType = true)
         {
-            return configuration.HasColumnType(columnType, -1);
-        }
-        public static PrimitivePropertyConfiguration HasColumnType(this PrimitivePropertyConfiguration configuration, SqlDbType columnType, int sizeOrPrecision)
-        {
-            return configuration.HasColumnType(columnType, sizeOrPrecision, -1);
-        }
-        public static PrimitivePropertyConfiguration HasColumnType(this PrimitivePropertyConfiguration configuration, SqlDbType columnType, int sizeOrPrecision, int scale)
-        {
-            switch (columnType)
+            switch (sqlColumnType)
             {
                 case SqlDbType.Udt:
                 case SqlDbType.Structured:
-                    throw new NotSupportedException($"The type '{columnType.ToString()}' not supported.");
+                    if (exceptionOnInvalidType)
+                        throw new NotSupportedException($"The type '{sqlColumnType.ToString()}' not supported.");
+                    else
+                        return null;
             }
-
-            var typeName = columnType.ToString().ToLower();
-            if (scale != -1 && sizeOrPrecision != -1)
-                typeName = typeName.Append("(", sizeOrPrecision.ToString(), ",", scale.ToString(), ")");
-            else if (sizeOrPrecision != -1)
-                typeName = typeName.Append("(", sizeOrPrecision.ToString(), ")");
-            configuration.HasColumnType(typeName);
-            return configuration;
+            return Enum.GetName(typeof(SqlDbType), sqlColumnType).ToLower();
+        }
+        public static DateTimePropertyConfiguration HasColumnType(this DateTimePropertyConfiguration configuration, SqlDbType sqlColumnType)
+        {
+            return configuration.HasColumnType(GetSqlColumnTypeName(sqlColumnType));
+        }
+        public static DecimalPropertyConfiguration HasColumnType(this DecimalPropertyConfiguration configuration, SqlDbType sqlColumnType)
+        {
+            return configuration.HasColumnType(GetSqlColumnTypeName(sqlColumnType));
+        }
+        public static BinaryPropertyConfiguration HasColumnType(this BinaryPropertyConfiguration configuration, SqlDbType sqlColumnType)
+        {
+            return configuration.HasColumnType(GetSqlColumnTypeName(sqlColumnType));
+        }
+        public static StringPropertyConfiguration HasColumnType(this StringPropertyConfiguration configuration, SqlDbType sqlColumnType)
+        {
+            return configuration.HasColumnType(GetSqlColumnTypeName(sqlColumnType));
+        }
+        public static PrimitivePropertyConfiguration HasColumnType(this PrimitivePropertyConfiguration configuration, SqlDbType sqlColumnType)
+        {
+            return configuration.HasColumnType(GetSqlColumnTypeName(sqlColumnType));
         }
     }
 }
