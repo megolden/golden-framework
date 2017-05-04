@@ -13,5 +13,5 @@ using System.Runtime.Versioning;
 [assembly: AssemblyTitle("Golden.Data.Extensions")]
 [assembly: ComVisible(false)]
 [assembly: Guid("cd57fcfc-9d1c-4a60-ad28-16b66c6d3103")]
-[assembly: AssemblyVersion("3.0.1")]
-[assembly: AssemblyFileVersion("3.0.1")]
+[assembly: AssemblyVersion("3.1.0")]
+[assembly: AssemblyFileVersion("3.1.0")]

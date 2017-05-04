@@ -219,6 +219,16 @@ namespace System.Data.Entity
         {
             return (context as IObjectContextAdapter).ObjectContext;
         }
+        public static DbContext DbContext(this Database db)
+        {
+            var iContext = TypeHelper.GetMemberValue("_internalContext", db);
+            return (TypeHelper.GetMemberValue("Owner", iContext) as DbContext);
+        }
+        public static ObjectContext ObjectContext(this Database db)
+        {
+            var iContext = TypeHelper.GetMemberValue("_internalContext", db);
+            return (TypeHelper.GetMemberValue("ObjectContext", iContext) as ObjectContext);
+        }
         public static int SaveDbChanges(this DbContext context)
         {
             return context.ObjectContext().SaveChanges(SaveOptions.None);
@@ -416,6 +426,80 @@ namespace System.Data.Entity
 
             return param;
         }
+        public static IMultipleResult ExecuteMultipleResult(this Database db, string cmdText, Type[] resultTypes, params object[] parameters)
+        {
+            var results = new List<Collections.IList>();
+
+            var objContext = db.ObjectContext();
+            // If using Code First we need to make sure the model is built before we open the connection 
+            // This isn't required for models created with the EF Designer 
+            db.Initialize(false);
+
+            var cmd = db.Connection.CreateCommand();
+            cmd.CommandType = CommandType.Text;
+            if (db.CurrentTransaction != null)
+                cmd.Transaction = db.CurrentTransaction.UnderlyingTransaction;
+            var cmdParams = parameters.Select((pi, i) =>
+            {
+                if (pi is DbParameter)
+                    return (DbParameter)pi;
+                else
+                    return new SqlClient.SqlParameter("@_".Append(i.ToString()), (parameters[i] ?? DBNull.Value));
+            }).ToList();
+            if (parameters.Length > 0 && !(parameters[0] is DbParameter))
+            {
+                cmdText = string.Format(cmdText, cmdParams.Select(dbp=>(object)dbp.ParameterName).ToArray());
+            }
+            cmd.CommandText = cmdText;
+            cmdParams.ForEach(p => cmd.Parameters.Add(p));
+
+            bool prevConn = (db.Connection.State != ConnectionState.Closed);
+            try
+            {
+                if (!prevConn) db.Connection.Open();
+
+                if (resultTypes.Length > 0)
+                {
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        int resultTypeIndex = 0;
+                        Collections.IList currResult = null;
+
+                        do
+                        {
+                            if (resultTypeIndex >= resultTypes.Length) break;
+
+                            var resultType = resultTypes[resultTypeIndex];
+                            if (reader.HasRows)
+                            {
+                                var objRet = mTranslate.Value.MakeGenericMethod(resultType).Invoke(objContext, new object[] { reader });
+                                currResult = (Collections.IList)mEnumerableToList.Value.MakeGenericMethod(resultType).Invoke(null, new object[] { objRet });
+                            }
+                            else
+                            {
+                                currResult = (Collections.IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(resultType));
+                            }
+                            results.Add(currResult);
+
+                            resultTypeIndex++;
+
+                        } while (reader.NextResult());
+
+                        if (!reader.IsClosed) reader.Close();
+                    }
+                }
+                else
+                {
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            finally
+            {
+                if (!prevConn) db.Connection.Close();
+            }
+
+            return new MultipleResult(results);
+        }
         public static T ExecuteNiladicFunction<T>(this DbContext context)
         {
             var callingMethod = (new StackFrame(1, false)).GetMethod();
@@ -524,6 +608,7 @@ namespace System.Data.Entity
                 }
             }
 
+            var objContext = context.ObjectContext();
             //var currentResult = new List<object>();
             var results = new List<Collections.IList>();// { currentResult };
 
@@ -562,7 +647,7 @@ namespace System.Data.Entity
                             var resultType = resultTypes[resultTypeIndex];
                             if (reader.HasRows)
                             {
-                                var objRet = mTranslate.Value.MakeGenericMethod(resultType).Invoke(context.ObjectContext(), new object[] { reader });
+                                var objRet = mTranslate.Value.MakeGenericMethod(resultType).Invoke(objContext, new object[] { reader });
                                 currResult = (Collections.IList)mEnumerableToList.Value.MakeGenericMethod(resultType).Invoke(null, new object[] { objRet });
                             }
                             else

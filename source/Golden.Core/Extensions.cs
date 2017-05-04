@@ -9,26 +9,27 @@
     public static class StringExtensions
     {
         /// <summary>
-        /// Splits string by "\r", "\n" and "\r\n" delimiters.
+        /// Splits string by "\r", "\n", "\r\n" and "\n\r" delimiters.
         /// </summary>
         public static string[] SplitLines(this string str)
         {
             return SplitLines(str, StringSplitOptions.None);
         }
         /// <summary>
-        /// Splits string by "\r", "\n" and "\r\n" delimiters.
+        /// Splits string by "\r", "\n", "\r\n" and "\n\r" delimiters.
         /// </summary>
         public static string[] SplitLines(this string str, StringSplitOptions options)
         {
             if (str == null) return null;
-            return str.Split(new string[] { "\r", "\r\n", "\n" }, options);
+            return str.Split(new string[] { "\r", "\r\n", "\n\r", "\n" }, options);
         }
         public static string ReplaceNewLine(this string str, string newValue)
         {
-            if (str.IsNullOrWhiteSpace()) return str;
+            if (str.IsNullOrEmpty()) return str;
 
             var buffer = new StringBuilder(str);
             buffer.Replace("\r\n", newValue);
+			buffer.Replace("\n\r", newValue);
             buffer.Replace("\r", newValue);
             buffer.Replace("\n", newValue);
 
@@ -310,11 +311,23 @@
             return type.FriendlyName(false);
         }
     }
+    public static class EnumExtensions
+    {
+        public static T GetValue<T>(this Enum value) where T : struct
+        {
+            return Golden.Utility.Utilities.Convert<T>(value);
+        }
+        public static object GetValue(this Enum value)
+        {
+            return Golden.Utility.Utilities.Convert(Enum.GetUnderlyingType(value.GetType()), value);
+        }
+    }
 }
 namespace System.IO
 {
     using System.Collections.Generic;
     using System.Linq;
+    using Text;
 
     public static class IOExtensions
     {
@@ -335,6 +348,25 @@ namespace System.IO
             stream.Read(buffer, 0, buffer.Length);
             if (prevPos != -1) stream.Seek(prevPos, SeekOrigin.Begin);
             return buffer;
+        }
+        public static string ReadAsString(this Stream stream)
+        {
+            return stream.ReadAsString(Encoding.UTF8);
+        }
+        public static string ReadAsString(this Stream stream, bool detectEncodingFromByteOrderMarks)
+        {
+            return stream.ReadAsString(Encoding.UTF8, detectEncodingFromByteOrderMarks);
+        }
+        public static string ReadAsString(this Stream stream, Encoding encoding)
+        {
+            return stream.ReadAsString(encoding, true);
+        }
+        public static string ReadAsString(this Stream stream, Encoding encoding, bool detectEncodingFromByteOrderMarks)
+        {
+            using (var sr = new StreamReader(stream, encoding, detectEncodingFromByteOrderMarks))
+            {
+                return sr.ReadToEnd();
+            }
         }
         public static void SaveToFile(this Stream stream, string filePath)
         {
@@ -448,10 +480,6 @@ namespace System.Linq
     {
         private static readonly Lazy<Random> randomInstance = new Lazy<Random>(() => new Random());
 
-        public static MemoryStream ToStream(this IEnumerable<byte> bytes, bool writable = true)
-        {
-            return new MemoryStream(bytes.ToArray(), writable);
-        }
         public static string GetString(this IEnumerable<byte> bytes)
         {
             return bytes.GetString(Encoding.UTF8);
