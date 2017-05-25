@@ -121,7 +121,7 @@ namespace Golden.Tests
                 new Student { Id = 10, Name = "Rahim", BirthDate = DateTime.Today.AddMonths(-20) },
                 new Student { Id = 12, Name = "ali", BirthDate = DateTime.Today.AddMonths(-21) },
             };
-            
+
             //These variables values can be filled from user interface controls.
             bool nameOrdering = false;
             bool nameFiltering = true;
@@ -165,33 +165,11 @@ namespace Golden.Tests
             Debugger.Break();
         }
 
-        [TestMethod]
-        public void DataObjectQueryableTests()
-        {
-            //Applying for IQueryable data source.
-            using (var db = DbContextUtilities.Create<DBTestDbContext>("localhost", "DBTest"))
-            {
-                var dbQuery =
-                    new ObjectQueryable<Student>()
-                    .SetUserData("Includes", "City")
-                    .Where(c => c.Name.Like("%li%"))
-                    //.Where(c => c.Id < 3)
-                    //.Where(c => c.Name.Left(1) == "S")
-                    //.Where(c=>c.Name.Reverse().Right(1) != "1")
-                    //.Where(c => c.BirthDate.Value.Date == DateTime.Now.Date)
-                    //.Sort("Name DESC, Id ASC")
-                    //.Where<Student, string>("Name", (s, name) => name != s.Id.ToString())
-                    //.Where<Student, string>("Name", name => name.Contains("m"))
-                    //.Skip(countAccessor: () => db.CURRENT_USER().Length) // Call 'Skip' method with an expression as count parameter.
-                    //.OrderBy(c => c.Id).TakePage(page: 5, count: 10) // Take page 5 (size of each page is 10)
-                    ;
-
-                var parameters = dbQuery.GetUserData();
-                var dataResult = db.Student.AsNoTracking().Include(parameters["Includes"].ToString()).ApplyDataQuery(dbQuery).ToList();
-
-                Debugger.Break();
-            }
-        }
+        // Moved to 'Golden.Tests.GoldenDataExtensionsTests.DataContext' class
+        //[TestMethod]
+        //public void DataObjectQueryableTests()
+        //{
+        //}
 
         [TestMethod]
         public void Extensions()

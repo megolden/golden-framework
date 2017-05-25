@@ -112,15 +112,14 @@ namespace System.Data
                 throw new ArgumentNullException(nameof(table));
 
             if (table.Rows.Count == 0)
-                return Enumerable.Empty<T>();
+                yield break;
 
-            var result = new List<T>();
             var creator = InstanceCreator<T>(table);
             foreach (var item in table.AsEnumerable())
             {
-                result.Add(creator.Invoke(item.ItemArray));
+                yield return creator.Invoke(item.ItemArray);
             }
-            return result;
+            yield break;
         }
     }
 }
@@ -387,6 +386,9 @@ namespace System.Data.Entity
         }
         private static DbParameter GetDbParameter(ParameterInfo parameter, object value)
         {
+            if (value is DbParameter)
+                return ((DbParameter)value);
+
             var pType = GetRealParameterType(parameter);
 
             var name = "@".Append((parameter.GetCustomAttribute<ParameterAttribute>()?.Name ?? parameter.Name));
@@ -448,7 +450,7 @@ namespace System.Data.Entity
             }).ToList();
             if (parameters.Length > 0 && !(parameters[0] is DbParameter))
             {
-                cmdText = string.Format(cmdText, cmdParams.Select(dbp=>(object)dbp.ParameterName).ToArray());
+                cmdText = string.Format(cmdText, cmdParams.Select(dbp => (object)dbp.ParameterName).ToArray());
             }
             cmd.CommandText = cmdText;
             cmdParams.ForEach(p => cmd.Parameters.Add(p));
@@ -609,14 +611,13 @@ namespace System.Data.Entity
             }
 
             var objContext = context.ObjectContext();
-            //var currentResult = new List<object>();
-            var results = new List<Collections.IList>();// { currentResult };
+            var results = new List<Collections.IList>();
 
             // If using Code First we need to make sure the model is built before we open the connection 
             // This isn't required for models created with the EF Designer 
             context.Database.Initialize(false);
 
-            // Create a SQL command to execute the sproc 
+            // Create a SQL command to execute the procedure
             var cmd = context.Database.Connection.CreateCommand();
             cmd.CommandText = (
                 functionAttrib.Schema != null ?
@@ -690,6 +691,8 @@ namespace System.Data.Entity.ModelConfiguration
     using Configuration;
     using System.ComponentModel.DataAnnotations.Schema;
     using System.Linq.Expressions;
+    using System.Reflection;
+    using System.Linq;
 
     public static class ConfigurationExtensions
     {
@@ -732,6 +735,66 @@ namespace System.Data.Entity.ModelConfiguration
         {
             return configuration.HasColumnType(GetSqlColumnTypeName(sqlColumnType));
         }
+        public static void RegisterFromAssembly(this ConfigurationRegistrar configuration, Assembly assembly)
+        {
+            var configTypes = assembly.GetTypes()
+                .Select(type =>
+                {
+                    Type elementType = null;
+                    var configType = "Unknown";
+                    var baseType = type.BaseType;
+                    while (baseType != null && baseType != typeof(object))
+                    {
+                        if (baseType.IsGenericType)
+                        {
+                            var genType1 = baseType.GetGenericArguments().FirstOrDefault();
+                            if (typeof(EntityTypeConfiguration<>).MakeGenericType(genType1) == baseType)
+                            {
+                                configType = "Entity";
+                                elementType = genType1;
+                                break;
+                            }
+                            else if (typeof(ComplexTypeConfiguration<>).MakeGenericType(genType1) == baseType)
+                            {
+                                configType = "ComplexType";
+                                elementType = genType1;
+                                break;
+                            }
+                        }
+                        baseType = baseType.BaseType;
+                    }
+                    return new { ConfigType = configType, Type = type, ElementType = elementType };
+                })
+                .ToList();
+
+            if (configTypes.Count == 0) return;
+
+            var mAddEntity = typeof(ConfigurationRegistrar).GetMember("Add", BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.Public)
+                .OfType<MethodInfo>()
+                .FirstOrDefault(mi =>
+                {
+                    if (!mi.IsGenericMethod && mi.GetGenericArguments().Length != 1) return false;
+                    var param1Type = mi.GetParameters().FirstOrDefault()?.ParameterType;
+                    if (param1Type == null) return false;
+                    return (param1Type.IsGenericType && (string.Equals(param1Type.NonGenericName(), typeof(EntityTypeConfiguration<>).NonGenericName(), StringComparison.OrdinalIgnoreCase)));
+                });
+            var mAddComplexType = typeof(ConfigurationRegistrar).GetMember("Add", BindingFlags.Instance | BindingFlags.InvokeMethod | BindingFlags.Public)
+                .OfType<MethodInfo>()
+                .FirstOrDefault(mi =>
+                {
+                    if (!mi.IsGenericMethod && mi.GetGenericArguments().Length != 1) return false;
+                    var param1Type = mi.GetParameters().FirstOrDefault()?.ParameterType;
+                    if (param1Type == null) return false;
+                    return (param1Type.IsGenericType && (string.Equals(param1Type.NonGenericName(), typeof(ComplexTypeConfiguration<>).NonGenericName(), StringComparison.OrdinalIgnoreCase)));
+                });
+            configTypes.ForEach(tc =>
+            {
+                if ("Entity".EqualsOrdinal(tc.ConfigType, true))
+                    mAddEntity.MakeGenericMethod(tc.ElementType).Invoke(configuration, new object[] { Activator.CreateInstance(tc.Type) });
+                else if ("ComplexType".EqualsOrdinal(tc.ConfigType, true))
+                    mAddComplexType.MakeGenericMethod(tc.ElementType).Invoke(configuration, new object[] { Activator.CreateInstance(tc.Type) });
+            });
+        }
     }
 }
 namespace Golden.Data.Extensions
@@ -742,38 +805,8 @@ namespace Golden.Data.Extensions
     using System.Linq;
     using System.Linq.Expressions;
     using System.Reflection;
+    using Golden;
 
-    public static class DbContextUtilities
-    {
-        /// <summary>
-        /// Creates an instance of <see cref="DbContext"/> class with SQL Server connection string (Integrated Security = SSPI).
-        /// </summary>
-        /// <typeparam name="T">Type of DbContext</typeparam>
-        [Obsolete]
-        public static T Create<T>(string serverAddress, string databaseName, string applicationName = null) where T : DbContext
-        {
-            return Create<T>(serverAddress, databaseName, null, null, applicationName);
-        }
-        /// <summary>
-        /// Creates an instance of <see cref="DbContext"/> class with SQL Server connection string parameters.
-        /// </summary>
-        /// <typeparam name="T">Type of DbContext</typeparam>
-        [Obsolete]
-        public static T Create<T>(string serverAddress, string databaseName, string userName, string password, string applicationName = null) where T : DbContext
-        {
-            var connStr = new StringBuilder();
-            connStr.AppendFormat(
-                "Data Source={0};Initial Catalog={1};MultipleActiveResultSets=True;",
-                serverAddress,
-                databaseName);
-            if (!string.IsNullOrEmpty(applicationName)) connStr.AppendFormat("Application Name={0};", applicationName);
-            if (string.IsNullOrEmpty(userName))
-                connStr.Append("Integrated Security=SSPI;");
-            else
-                connStr.AppendFormat("User ID={0};Password={1};", userName, password);
-            return (T)Activator.CreateInstance(typeof(T), new object[] { connStr.ToString() });
-        }
-    }
     public static class ObjectQueryableExtensions
     {
         private class DataObjectQueryableVisitor : ExpressionVisitor
@@ -801,6 +834,30 @@ namespace Golden.Data.Extensions
             private static Lazy<MethodInfo> mDTOTruncateTime = new Lazy<MethodInfo>(() =>
             {
                 return typeof(DbFunctions).GetMethod(nameof(DbFunctions.TruncateTime), new Type[] { typeof(DateTimeOffset?) }, null);
+            });
+            private static Lazy<MethodInfo> mContains = new Lazy<MethodInfo>(() =>
+            {
+                return typeof(Enumerable).GetMember(nameof(Enumerable.Contains), BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod)
+                    .OfType<MethodInfo>()
+                    .FirstOrDefault(mi => mi.GetParameters().Length == 2);
+            });
+            private static Lazy<MethodInfo> mIsBetween = new Lazy<MethodInfo>(() =>
+            {
+                return typeof(Utility.Utilities).GetMember(nameof(Utility.Utilities.IsBetween), BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod)
+                    .OfType<MethodInfo>()
+                    .FirstOrDefault(mi => mi.IsGenericMethod && mi.GetParameters().Length == 3);
+            });
+            private static Lazy<MethodInfo> mIsIn = new Lazy<MethodInfo>(() =>
+            {
+                return typeof(Utility.Utilities).GetMember(nameof(Utility.Utilities.IsIn), BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod)
+                    .OfType<MethodInfo>()
+                    .FirstOrDefault(mi => mi.IsGenericMethod && mi.GetParameters().Length == 2);
+            });
+            private static Lazy<MethodInfo> mHasFlag = new Lazy<MethodInfo>(() =>
+            {
+                return typeof(Utility.Utilities).GetMember(nameof(Utility.Utilities.HasFlag), BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod)
+                    .OfType<MethodInfo>()
+                    .FirstOrDefault(mi => mi.IsGenericMethod && mi.GetParameters().Length == 2);
             });
             private readonly Expression source;
 
@@ -869,6 +926,46 @@ namespace Golden.Data.Extensions
                         var newExp = Expression.GreaterThan(
                             Expression.Call(mPatIndex.Value, node.Arguments[1], node.Arguments[0]),
                             Expression.Constant(new int?(0), typeof(int?)));
+                        return base.Visit(newExp);
+                    }
+                }
+                else if (node.Method.DeclaringType == typeof(Utility.Utilities))
+                {
+                    if (node.Method.Name.EqualsOrdinal(nameof(Utility.Utilities.IsBetween)) && node.Method.IsGenericMethod && node.Method.GetParameters().Length == 3)
+                    {
+                        var newExp = Expression.AndAlso(
+                            Expression.GreaterThanOrEqual(node.Arguments[0], node.Arguments[1]),
+                            Expression.LessThanOrEqual(node.Arguments[0], node.Arguments[2]));
+                        return base.Visit(newExp);
+                    }
+                    else if (node.Method.Name.EqualsOrdinal(nameof(Utility.Utilities.IsIn)) && node.Method.IsGenericMethod && node.Method.GetParameters().Length == 2)
+                    {
+                        var newMethodExp = Expression.Call(mContains.Value.MakeGenericMethod(node.Method.GetGenericArguments()[0]), node.Arguments[1], node.Arguments[0]);
+                        return base.VisitMethodCall(newMethodExp);
+                    }
+                    else if (node.Method.Name.EqualsOrdinal(nameof(Utility.Utilities.HasFlag)))
+                    {
+                        var newExp = Expression.Equal(
+                            Expression.And(node.Arguments[0], node.Arguments[1]),
+                            node.Arguments[1]);
+                        return base.Visit(newExp);
+                    }
+                }
+                else if (node.Method.DeclaringType == typeof(GoldenExtensions.GoldenExtensions))
+                {
+                    if (node.Method.Name.EqualsOrdinal(nameof(GoldenExtensions.GoldenExtensions.IsBetween)))
+                    {
+                        var newExp = Expression.Call(mIsBetween.Value.MakeGenericMethod(node.Method.GetGenericArguments()[0]), node.Arguments[0], node.Arguments[1], node.Arguments[2]);
+                        return base.Visit(newExp);
+                    }
+                    else if (node.Method.Name.EqualsOrdinal(nameof(GoldenExtensions.GoldenExtensions.IsIn)) && node.Method.IsGenericMethod && node.Method.GetParameters().Length == 2)
+                    {
+                        var newExp = Expression.Call(mIsIn.Value.MakeGenericMethod(node.Method.GetGenericArguments()[0]), node.Arguments[0], node.Arguments[1]);
+                        return base.Visit(newExp);
+                    }
+                    else if (node.Method.Name.EqualsOrdinal(nameof(GoldenExtensions.GoldenExtensions.HasFlag)) && !node.Method.IsGenericMethod && node.Method.GetParameters().Length == 2)
+                    {
+                        var newExp = Expression.Call(mHasFlag.Value.MakeGenericMethod(node.Arguments[0].Type), node.Arguments[0], node.Arguments[1]);
                         return base.Visit(newExp);
                     }
                 }
@@ -990,8 +1087,13 @@ namespace System.Linq
         {
             var internalQuery = _IInternalQueryProperty.Value.GetValue(query, null);
             var objectQuery = _ObjectQueryProperty.Value.GetValue(internalQuery, null);
-
             return (objectQuery as ObjectQuery<TEntity>);
+        }
+        internal static ObjectQuery ToObjectQuery(this IQueryable query)
+        {
+            var internalQuery = _IInternalQueryProperty.Value.GetValue(query, null);
+            var objectQuery = _ObjectQueryProperty.Value.GetValue(internalQuery, null);
+            return (objectQuery as ObjectQuery);
         }
         public static int DeleteDirectly<TEntity>(this IQueryable<TEntity> source, Expression<Func<TEntity, bool>> predicate) where TEntity : class
         {

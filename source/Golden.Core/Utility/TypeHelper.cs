@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Reflection.Emit;
 
 namespace Golden.Utility
 {
@@ -196,5 +197,49 @@ namespace Golden.Utility
 		{
 			return GetMembers(members);
 		}
+        private static readonly Lazy<ModuleBuilder> mDynamicModuleBuilder = new Lazy<ModuleBuilder>(() =>
+        {
+            var asmBuilder = AppDomain.CurrentDomain.DefineDynamicAssembly(new AssemblyName("DynamicAssembly_".Append(Guid.NewGuid().ToString("N"))), AssemblyBuilderAccess.Run);
+            var moduleBuilder = asmBuilder.DefineDynamicModule("DynamicModule_".Append(Guid.NewGuid().ToString("N")));
+            return moduleBuilder;
+        });
+        public static Type CreateType(Dictionary<string, Type> properties)
+        {
+            var token = "_".Append(Guid.NewGuid().ToString("N"));
+
+            var parentType = typeof(object);
+            var fullName = "DynamicType_".Append(token);
+            ILGenerator ilGen = null;
+            var moduleBuilder = mDynamicModuleBuilder.Value;
+            var typeBuilder = moduleBuilder.DefineType(fullName, TypeAttributes.Public);
+            typeBuilder.SetParent(parentType);
+
+            typeBuilder.DefineDefaultConstructor(MethodAttributes.Public);
+
+            foreach (var propConfig in properties)
+            {
+                var mField = typeBuilder.DefineField(propConfig.Key.Insert(0, "_"), propConfig.Value, FieldAttributes.Private);
+                var propertyBuilder = typeBuilder.DefineProperty(propConfig.Key, PropertyAttributes.None, propConfig.Value, null);
+                var mGetSetAttribs = MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.SpecialName | MethodAttributes.Final;
+                #region Get
+                var getMethodBuilder = typeBuilder.DefineMethod(string.Concat("get_", propertyBuilder.Name), mGetSetAttribs, CallingConventions.HasThis, propertyBuilder.PropertyType, Type.EmptyTypes);
+                ilGen = getMethodBuilder.GetILGenerator();
+                ilGen.Emit(OpCodes.Ldarg_0);
+                ilGen.Emit(OpCodes.Ldfld, mField);
+                ilGen.Emit(OpCodes.Ret);
+                propertyBuilder.SetGetMethod(getMethodBuilder);
+                #endregion
+                #region Set
+                var setMethodBuilder = typeBuilder.DefineMethod(string.Concat("set_", propertyBuilder.Name), mGetSetAttribs, CallingConventions.HasThis, null, new[] { propertyBuilder.PropertyType });
+                ilGen = setMethodBuilder.GetILGenerator();
+                ilGen.Emit(OpCodes.Ldarg_0);
+                ilGen.Emit(OpCodes.Ldarg_1);
+                ilGen.Emit(OpCodes.Stfld, mField);
+                ilGen.Emit(OpCodes.Ret);
+                propertyBuilder.SetSetMethod(setMethodBuilder);
+                #endregion
+            }
+            return typeBuilder.CreateType();
+        }
 	}
 }

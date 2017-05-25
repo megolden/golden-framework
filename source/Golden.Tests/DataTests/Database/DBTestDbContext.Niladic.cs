@@ -33,5 +33,14 @@ namespace Golden.Tests
         {
             return this.ExecuteNiladicFunction<int?>();
         }
+
+        /// <summary>
+        /// COUNT(*) OVER()
+        /// </summary>
+        [NiladicFunction("COUNT(*) OVER()")]
+        public static int? TotalRowCount()
+        {
+            throw new InvalidOperationException();
+        }
     }
 }

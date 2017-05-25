@@ -396,6 +396,42 @@ namespace System.IO
         {
             return Path.GetFileName(path);
         }
+        public static string GetDirectoryName(this string path)
+        {
+            return Path.GetDirectoryName(path);
+        }
+        public static void DeleteFile(this string path)
+        {
+            File.Delete(path);
+        }
+        public static FileStream OpenFile(this string path, FileMode mode)
+        {
+            return File.Open(path, mode);
+        }
+        public static FileStream OpenFile(this string path, FileMode mode, FileAccess access)
+        {
+            return File.Open(path, mode, access);
+        }
+        public static void WriteToFile(this string content, string filePath)
+        {
+            content.WriteToFile(filePath, Encoding.UTF8);
+        }
+        public static void WriteToFile(this string content, string filePath, Encoding encoding)
+        {
+            File.WriteAllText(filePath, content, encoding);
+        }
+        public static string GetFileContent(this string filePath)
+        {
+            return filePath.GetFileContent(Encoding.UTF8);
+        }
+        public static string GetFileContent(this string filePath, Encoding encoding)
+        {
+            return File.ReadAllText(filePath, encoding);
+        }
+        public static byte[] GetFileBytes(this string filePath)
+        {
+            return File.ReadAllBytes(filePath);
+        }
     }
 }
 namespace System.Text
@@ -467,13 +503,11 @@ namespace System.Collections.Generic
 }
 namespace System.Linq
 {
-    using IO;
     using Reflection;
     using System.Collections.Generic;
     using System.Linq.Expressions;
     using Text;
     using Golden;
-    using Text.RegularExpressions;
     using ComponentModel;
 
     public static class EnumerableExtensions
@@ -586,6 +620,14 @@ namespace System.Linq
         public static void AddRange<T>(this ICollection<T> source, params T[] items)
         {
             if (items == null || items.Length == 0) return;
+
+            var list = source as List<T>;
+            if (list != null)
+            {
+                list.AddRange(items);
+                return;
+            }
+
             foreach (var item in items)
             {
                 source.Add(item);
@@ -593,6 +635,13 @@ namespace System.Linq
         }
         public static void AddRange<T>(this ICollection<T> source, IEnumerable<T> collection)
         {
+            var list = source as List<T>;
+            if (list != null)
+            {
+                list.AddRange(collection);
+                return;
+            }
+
             foreach (var item in collection)
             {
                 source.Add(item);
@@ -617,58 +666,108 @@ namespace System.Linq
         {
             return collection.Join("");
         }
+        private static Delegate InstanceCreator<T>(Type sourceType)
+        {
+            var resultType = typeof(T);
+            var sourceExp = Expression.Parameter(sourceType, "source");
+            var propsBindExps = new List<MemberBinding>();
+            foreach (var prop in sourceType.GetProperties())
+            {
+                if (!prop.CanRead || prop.GetIndexParameters().Length > 0) continue;
+
+                var targetProp = resultType.GetProperty(prop.Name);
+
+                if (targetProp == null || !targetProp.CanWrite || targetProp.GetIndexParameters().Length > 0) continue;
+
+                var assExp = (Expression)Expression.MakeMemberAccess(sourceExp, prop);
+                if (targetProp.PropertyType != prop.PropertyType)
+                {
+                    var mConvert = typeof(Golden.Utility.Utilities).GetMethod(nameof(Golden.Utility.Utilities.Convert), new Type[] { typeof(object) })
+                        .MakeGenericMethod(targetProp.PropertyType);
+                    assExp = Expression.Call(mConvert, (prop.PropertyType != typeof(object) ? Expression.Convert(assExp, typeof(object)) : assExp));
+                }
+
+                propsBindExps.Add(Expression.Bind(targetProp, assExp));
+            }
+            return Expression.Lambda(Expression.MemberInit(Expression.New(resultType), propsBindExps), sourceExp).Compile();
+        }
+        /// <summary>
+        /// Maps non-generic 'IEnumerable' to IEnumerable&lt;<typeparamref name="TResult"/>&gt;
+        /// </summary>
+        public static IEnumerable<TResult> MapTo<TResult>(this Collections.IEnumerable source) where TResult : new()
+        {
+            var sourceType = Golden.Utility.TypeHelper.GetElementType(source.GetType());
+            var creator = InstanceCreator<TResult>(sourceType);
+            foreach (var item in source)
+            {
+                yield return (TResult)creator.DynamicInvoke(item);
+            }
+            yield break;
+        }
     }
     public static class QueryableExtensions
     {
         #region Fields
 
-        private static Lazy<MethodInfo> mOrderBy = new Lazy<MethodInfo>(() =>
+        private static readonly Lazy<MethodInfo> mOrderBy = new Lazy<MethodInfo>(() =>
         {
             return typeof(Queryable).GetMember(nameof(Queryable.OrderBy), BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod)
                 .OfType<MethodInfo>()
                 .FirstOrDefault(mi => mi.GetParameters().Length == 2);
         });
-        private static Lazy<MethodInfo> mOrderByComparer = new Lazy<MethodInfo>(() =>
+        private static readonly Lazy<MethodInfo> mOrderByComparer = new Lazy<MethodInfo>(() =>
         {
             return typeof(Queryable).GetMember(nameof(Queryable.OrderBy), BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod)
                 .OfType<MethodInfo>()
                 .FirstOrDefault(mi => mi.GetParameters().Length == 3);
         });
-        private static Lazy<MethodInfo> mThenBy = new Lazy<MethodInfo>(() =>
+        private static readonly Lazy<MethodInfo> mThenBy = new Lazy<MethodInfo>(() =>
         {
             return typeof(Queryable).GetMember(nameof(Queryable.ThenBy), BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod)
                 .OfType<MethodInfo>()
                 .FirstOrDefault(mi => mi.GetParameters().Length == 2);
         });
-        private static Lazy<MethodInfo> mThenByComparer = new Lazy<MethodInfo>(() =>
+        private static readonly Lazy<MethodInfo> mThenByComparer = new Lazy<MethodInfo>(() =>
         {
             return typeof(Queryable).GetMember(nameof(Queryable.ThenBy), BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod)
                 .OfType<MethodInfo>()
                 .FirstOrDefault(mi => mi.GetParameters().Length == 3);
         });
-        private static Lazy<MethodInfo> mOrderByDescending = new Lazy<MethodInfo>(() =>
+        private static readonly Lazy<MethodInfo> mOrderByDescending = new Lazy<MethodInfo>(() =>
         {
             return typeof(Queryable).GetMember(nameof(Queryable.OrderByDescending), BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod)
                 .OfType<MethodInfo>()
                 .FirstOrDefault(mi => mi.GetParameters().Length == 2);
         });
-        private static Lazy<MethodInfo> mOrderByDescendingComparer = new Lazy<MethodInfo>(() =>
+        private static readonly Lazy<MethodInfo> mOrderByDescendingComparer = new Lazy<MethodInfo>(() =>
         {
             return typeof(Queryable).GetMember(nameof(Queryable.OrderByDescending), BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod)
                 .OfType<MethodInfo>()
                 .FirstOrDefault(mi => mi.GetParameters().Length == 3);
         });
-        private static Lazy<MethodInfo> mThenByDescending = new Lazy<MethodInfo>(() =>
+        private static readonly Lazy<MethodInfo> mThenByDescending = new Lazy<MethodInfo>(() =>
         {
             return typeof(Queryable).GetMember(nameof(Queryable.ThenByDescending), BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod)
                 .OfType<MethodInfo>()
                 .FirstOrDefault(mi => mi.GetParameters().Length == 2);
         });
-        private static Lazy<MethodInfo> mThenByDescendingComparer = new Lazy<MethodInfo>(() =>
+        private static readonly Lazy<MethodInfo> mThenByDescendingComparer = new Lazy<MethodInfo>(() =>
         {
             return typeof(Queryable).GetMember(nameof(Queryable.ThenByDescending), BindingFlags.Public | BindingFlags.Static | BindingFlags.InvokeMethod)
                 .OfType<MethodInfo>()
                 .FirstOrDefault(mi => mi.GetParameters().Length == 3);
+        });
+        private static readonly Lazy<MethodInfo> mSelect = new Lazy<MethodInfo>(() =>
+        {
+            return typeof(Queryable).GetMember(nameof(Queryable.Select), BindingFlags.InvokeMethod | BindingFlags.Public | BindingFlags.Static)
+                .OfType<MethodInfo>()
+                .FirstOrDefault(mi =>
+                {
+                    var parameters = mi.GetParameters();
+                    if (parameters.Length != 2) return false;
+                    if (!parameters[1].ParameterType.IsGenericType) return false;
+                    return (parameters[1].ParameterType.GetGenericArguments()[0].GetGenericArguments().Length == 2);
+                });
         });
 
         #endregion
@@ -783,6 +882,63 @@ namespace System.Linq
             }
             return source;
         }
+        public static IQueryable SelectNew<TSource, TProperties>(this IQueryable<TSource> source, Expression<Func<TSource, TProperties>> additionalProperties)
+        {
+            return source.SelectNew(prop => true, additionalProperties);
+        }
+        public static IQueryable SelectNew<TSource, TProperties>(this IQueryable<TSource> source, Func<PropertyInfo, bool> sourcePropertyFilter, Expression<Func<TSource, TProperties>> additionalProperties)
+        {
+            var srcType = typeof(TSource);
+            var addType = typeof(TProperties);
+            var srcProps = srcType.GetProperties().Where(prop=>prop.CanRead && prop.GetIndexParameters().Length == 0).Where(prop => !prop.IsDefined<Golden.Annotations.IgnoreAttribute>(true)).Where(sourcePropertyFilter).ToList();
+            var srcParam = Expression.Parameter(srcType, "source");
+            var nee = (NewExpression)ExpressionReplacer.Replace(additionalProperties.Body.GetQuoted<NewExpression>(), additionalProperties.Parameters[0], srcParam);
+
+            if (nee == null)
+                throw new ArgumentOutOfRangeException(nameof(additionalProperties));
+
+            var newObjProps = new List<Tuple<string, Type, bool, int>>();
+            srcProps.ForEach((prop, i) => newObjProps.Add(new Tuple<string, Type, bool, int>(prop.Name, prop.PropertyType, false, i)));
+            nee.Members.ForEach((member, i) =>
+            {
+                var nt = new Tuple<string, Type, bool, int>(member.Name, Golden.Utility.TypeHelper.GetMemberType(member), true, i);
+                var prevPropIndex = newObjProps.FindIndex(np => np.Item1.EqualsOrdinal(member.Name));
+                if (prevPropIndex >= 0)
+                    newObjProps[prevPropIndex] = nt;
+                else
+                    newObjProps.Add(nt);
+            });
+
+            var newType = Golden.Utility.TypeHelper.CreateType(newObjProps.ToDictionary(p => p.Item1, p => p.Item2, StringComparer.Ordinal));
+            var propsBindExps = newObjProps.Select(member =>
+            {
+                var assExp = (member.Item3 ? nee.Arguments[member.Item4] : Expression.MakeMemberAccess(srcParam, srcProps[member.Item4]));
+                return Expression.Bind(newType.GetProperty(member.Item1), assExp);
+            });
+            var newExp = Expression.MemberInit(Expression.New(newType), propsBindExps.ToArray());
+            var lamExp = Expression.Lambda(newExp, srcParam);
+
+            var result = (IQueryable)mSelect.Value.MakeGenericMethod(srcType, newType).Invoke(null, new object[] { source, lamExp });
+
+            return result;
+        }
+        public static IQueryable SelectNew<TSource>(this IQueryable<TSource> source)
+        {
+            return source.SelectNew<TSource>(prop => true);
+        }
+        public static IQueryable SelectNew<TSource>(this IQueryable<TSource> source, Func<PropertyInfo, bool> sourcePropertyFilter)
+        {
+            var srcType = Golden.Utility.TypeHelper.GetElementType(source.GetType());
+            var noPropsObj = new { };
+            var noPropType = noPropsObj.GetType();
+            var mGMethod = typeof(QueryableExtensions).GetMember(nameof(SelectNew), BindingFlags.InvokeMethod | BindingFlags.Public | BindingFlags.Static)
+                .OfType<MethodInfo>()
+                .FirstOrDefault(mi => mi.IsGenericMethod && mi.GetParameters().Length == 3)
+                .MakeGenericMethod(srcType, noPropType);
+            return (IQueryable)mGMethod.Invoke(
+                null,
+                new object[] { source, sourcePropertyFilter, Expression.Lambda(Expression.Constant(noPropsObj, noPropType), Expression.Parameter(srcType, "source")) });
+        }
     }
 }
 namespace System.Linq.Expressions
@@ -797,6 +953,56 @@ namespace System.Linq.Expressions
         {
             if (expression == null || expression.NodeType != ExpressionType.Quote) return (expression as T);
             return ((UnaryExpression)expression).Operand?.GetQuoted<T>();
+        }
+        public static Expression<Func<T, bool>> Or<T>(this Expression<Func<T, bool>> source, Expression<Func<T, bool>> expression)
+        {
+            if (source == null)
+            {
+                if (expression == null)
+                    throw new ArgumentNullException(nameof(expression));
+                return expression;
+            }
+            if (expression == null)
+            {
+                if (source == null)
+                    throw new ArgumentNullException(nameof(source));
+                return source;
+            }
+
+            var p = source.Parameters[0]; // Expression.Parameter(typeof(T), source.Parameters[0].Name);
+            var leftExp = source.Body.GetQuoted();
+            var rightExp = Golden.ExpressionReplacer.Replace(expression.Body.GetQuoted(), expression.Parameters[0], p);
+            return Expression.Lambda<Func<T, bool>>(Expression.OrElse(leftExp, rightExp), p);
+        }
+        public static Expression<Func<T, bool>> And<T>(this Expression<Func<T, bool>> source, Expression<Func<T, bool>> expression)
+        {
+            if (source == null)
+            {
+                if (expression == null)
+                    throw new ArgumentNullException(nameof(expression));
+                return expression;
+            }
+            if (expression == null)
+            {
+                if (source == null)
+                    throw new ArgumentNullException(nameof(source));
+                return source;
+            }
+
+            var p = source.Parameters[0]; // Expression.Parameter(typeof(T), source.Parameters[0].Name);
+            var leftExp = source.Body.GetQuoted();
+            var rightExp = Golden.ExpressionReplacer.Replace(expression.Body.GetQuoted(), expression.Parameters[0], p);
+            return Expression.Lambda<Func<T, bool>>(Expression.AndAlso(leftExp, rightExp), p);
+        }
+        public static Expression<Func<T, bool>> OrNot<T>(this Expression<Func<T, bool>> source, Expression<Func<T, bool>> expression)
+        {
+            expression = Expression.Lambda<Func<T, bool>>(Expression.Not(expression.Body.GetQuoted()), expression.Parameters[0]);
+            return source.Or(expression);
+        }
+        public static Expression<Func<T, bool>> AndNot<T>(this Expression<Func<T, bool>> source, Expression<Func<T, bool>> expression)
+        {
+            expression = Expression.Lambda<Func<T, bool>>(Expression.Not(expression.Body.GetQuoted()), expression.Parameters[0]);
+            return source.And(expression);
         }
     }
 }
@@ -885,6 +1091,74 @@ namespace Golden
             var iqExp = Expression.Lambda<Func<IQueryable<TSource>, IQueryable<TResult>>>(newExp, pSource);
 
             return iqExp.Compile().Invoke(source.AsQueryable());
+        }
+    }
+}
+namespace Golden.GoldenExtensions
+{
+    using System;
+
+    public static class GoldenExtensions
+    {
+        public static bool HasFlag(this byte value, byte flag)
+        {
+            return Utility.Utilities.HasFlag(value, flag);
+        }
+        public static bool HasFlag(this short value, short flag)
+        {
+            return Utility.Utilities.HasFlag(value, flag);
+        }
+        public static bool HasFlag(this int value, int flag)
+        {
+            return Utility.Utilities.HasFlag(value, flag);
+        }
+        public static bool HasFlag(this long value, long flag)
+        {
+            return Utility.Utilities.HasFlag(value, flag);
+        }
+        public static bool HasFlag(this sbyte value, sbyte flag)
+        {
+            return Utility.Utilities.HasFlag(value, flag);
+        }
+        public static bool HasFlag(this ushort value, ushort flag)
+        {
+            return Utility.Utilities.HasFlag(value, flag);
+        }
+        public static bool HasFlag(this uint value, uint flag)
+        {
+            return Utility.Utilities.HasFlag(value, flag);
+        }
+        public static bool HasFlag(this ulong value, ulong flag)
+        {
+            return Utility.Utilities.HasFlag(value, flag);
+        }
+        public static TResult As<TSource, TResult>(this TSource value)
+        {
+            return Utility.Utilities.Convert<TResult>(value);
+        }
+        public static TResult As<TSource, TResult>(this TSource value, bool dbNullAsNull)
+        {
+            return Utility.Utilities.Convert<TResult>(value, dbNullAsNull);
+        }
+        public static TResult As<TResult>(this object value)
+        {
+            return value.As<object, TResult>();
+        }
+        public static TResult As<TResult>(this string value)
+        {
+            return value.As<string, TResult>();
+        }
+        public static bool IsBetween<T>(this T value, T minValue, T maxValue, bool includeMaxBound) where T : IComparable<T>
+        {
+            return Utility.Utilities.IsBetween(value, minValue, maxValue, includeMaxBound);
+        }
+        public static bool IsBetween<T>(this T value, T minValue, T maxValue) where T : IComparable<T>
+        {
+            return Utility.Utilities.IsBetween(value, minValue, maxValue);
+        }
+        public static bool IsIn<T>(this T value, params T[] items)
+        {
+            return Utility.Utilities.IsIn(value, items);
         }
     }
 }
