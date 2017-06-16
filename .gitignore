@@ -22,3 +22,4 @@ source/packages/
 source/Golden.Tests/Golden.Data.Generator.Tests.cs
 source/Golden.Data.Generator/
 source/Golden.Data.Generator.GUI/
+/source/Golden.Win/readme.txt
