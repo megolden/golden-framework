@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>$id$</id>
+    <version>$version$</version>
+    <title>$title$</title>
+    <authors>$author$</authors>
+    <owners>$author$</owners>
+    <licenseUrl>https://github.com/MeGolden/GoldenFramework/LICENSE.txt</licenseUrl>
+    <projectUrl>https://github.com/MeGolden/GoldenFramework/source/Golden.Data.ObjectDatabase</projectUrl>
+	  <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>$description$</description>
+    <releaseNotes>Version $version$ includes performance improvements and bug fixes.</releaseNotes>
+    <copyright>$copyright$</copyright>
+    <tags>golden goldenlibrary database smo sqlsever db database</tags>
+	  <dependencies>
+	    <dependency id="Golden.Core" version="3.3.8" />
+	  </dependencies>
+  </metadata>
+</package>

@@ -152,9 +152,11 @@ namespace Golden
         }
         protected void RaisePropertyChanged<T>(Expression<Func<T>> property)
         {
-            var memExp = property.Body as MemberExpression;
-            if (memExp == null) throw new ArgumentOutOfRangeException(nameof(property));
-            var propertyName = memExp.Member.Name;
+            var propertyName = Utility.Utilities.GetMember(property)?.Name;
+
+            if (string.IsNullOrEmpty(propertyName))
+                throw new ArgumentOutOfRangeException(nameof(property));
+
             RaisePropertyChanged(propertyName);
         }
         protected virtual void OnPropertyChanged(PropertyChangedEventArgs e)

@@ -31,6 +31,8 @@ namespace Golden.Tests
 
             NewTests:
 
+            var schemaList = db.Schemas.ToList();
+
             //var udTypes = db.UserDefinedTypes.ToList();
 
             var sp1 = db.StoredProcedure("spSearchStudent");

@@ -8,8 +8,7 @@
     <owners>$author$</owners>
     <licenseUrl>https://github.com/MeGolden/GoldenFramework/LICENSE.txt</licenseUrl>
     <projectUrl>https://github.com/MeGolden/GoldenFramework/tree/master/source/Golden.Core</projectUrl>
-	<!--<iconUrl>http://ICON_URL_HERE_OR_DELETE_THIS_LINE</iconUrl>-->
-	<requireLicenseAcceptance>false</requireLicenseAcceptance>
+	  <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>$description$</description>
     <releaseNotes>Version $version$ includes performance improvements and bug fixes.</releaseNotes>
     <copyright>$copyright$</copyright>

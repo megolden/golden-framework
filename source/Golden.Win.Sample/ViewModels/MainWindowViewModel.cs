@@ -1,6 +1,9 @@
 ﻿using Golden.Annotations;
-using Golden.Win.Mvvm;
-using Golden.Win.Mvvm.Mapping;
+using Golden.Mvvm;
+using Golden.Mvvm.Configuration;
+using Golden.Mvvm.Configuration.Annotations;
+using Golden.Mvvm.Interactivity;
+using Golden.Win.Sample.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -9,31 +12,42 @@ using System.Data.SqlClient;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using System.Windows.Input;
 
 namespace Golden.Win.Sample.Applications
 {
-    [Export(typeof(IMainWindowView))]
-    public class MainWindowViewModel : ViewModelBase<IMainWindowView>
+    public class MainWindowViewModel : AppViewModel<IMainWindowView>
     {
-        public virtual string Title { get; set; }
+        public override string Title
+        {
+            get {return base.Title;}
+            set{base.Title = value;}
+        }
         public virtual string Name { get; set; }
         public virtual DateTime? BirthDate { get; set; }
-        public virtual byte? Age
+        public virtual short? Age
         {
             get
             {
                 if (!BirthDate.HasValue) return null;
-                return (byte)(DateTime.Today.Year - BirthDate.Value.Year);
+                return (short)(DateTime.Today.Year - BirthDate.Value.Year);
             }
         }
-        public virtual ICollection<float> Marks { get; set; }
+        public ObservableCollection<float> Marks { get; } = new ObservableCollection<float>();
 
+        public MainWindowViewModel() : this(null)
+        {
+        }
         public MainWindowViewModel(IMainWindowView view) : base(view)
         {
+            AddRule(() => Age.HasValue, "'{0}' not specified", () => Age);
+            AddRule(() => Age > 0, "'{0}' has invalid value '{1}'", () => Age);
+            AddRule(() => !Name.IsNullOrWhiteSpace(), "'{0}' not specified", () => Name);
         }
         public void Save()
         {
-            Debug.WriteLine("Saved");
+            var vm = MvvmHelper.CreateViewModel<MessageBoxViewModel>(new Views.MessageBoxView());
+            vm.View.ShowDialog();
         }
         protected bool CanSave()
         {
@@ -53,26 +67,30 @@ namespace Golden.Win.Sample.Applications
             var random = new Random();
             Enumerable.Repeat(0, 10).ForEach(i => Marks.Add(random.Next(21)));
         }
-        private static void OnMapping(ViewModelConfiguration<MainWindowViewModel> config)
+        public void TMouseDown(MouseButtonEventArgs args)
         {
-            config.OnCreated(m => m.OnCreated);
-            config.Properties(m => new { m.Title, m.Name, m.BirthDate });
+            args.Handled = true;
+        }
+        public void TMouseUp(object sender, MouseButtonEventArgs args)
+        {
+            args.Handled = true;
+        }
+        protected virtual void OnViewModelRegister(ViewModelConfiguration<MainWindowViewModel> config)
+        {
+            base.OnViewModelRegister(config);
 
-            config.Property(m => m.Title)
+            config.OnInitilize(() => OnCreated);
+
+            config.Property(() => new { Name, BirthDate });
+            config.Property(() => Title)
                 .HasDefaultValue("Student Information");
-            config.Property(m => m.Marks)
-                .HasNewInstance(typeof(ObservableCollection<float>));
-            config.Property(m => m.BirthDate)
-                .HasDependency(m => m.Age)
-                .HasRule(value => value.HasValue, "'{0}' not specified")
-                .HasDependencyRule(vm => !vm.Age.HasValue || vm.Age > 0, "'{0}' has invalid value");
-            config.Property(m => m.Name)
-                .HasRule(value => !value.IsNullOrWhiteSpace(), "'{0}' not specified");
-            config.Property(m => m.BirthDate)
-                .OnChanging(m => m.BirthDateChanging)
-                .OnChanged(m => m.BirthDateChanged);
+            config.Property(() => BirthDate)
+                .HasDependency(() => Age)
+                .OnChanging(() => BirthDateChanging)
+                .OnChanged(() => BirthDateChanged);
 
-            config.Command(m => m.Save).CanExecute(m => m.CanSave);
+            config.Command(() => Save).CanExecute(() => CanSave);
+            config.Command<MouseButtonEventArgs>(() => TMouseDown);
         }
     }
 }

@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>$id$</id>
+    <version>$version$</version>
+    <title>$title$</title>
+    <authors>$author$</authors>
+    <owners>$author$</owners>
+    <licenseUrl>https://github.com/MeGolden/GoldenFramework/LICENSE.txt</licenseUrl>
+    <projectUrl>https://github.com/MeGolden/GoldenFramework/source/Golden.Win</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>$description$</description>
+    <releaseNotes>Version $version$ includes performance improvements and bug fixes.</releaseNotes>
+    <copyright>$copyright$</copyright>
+    <tags>golden wpf win mvvm pattern</tags>
+	  <dependencies>
+	    <dependency id="Golden.Core" version="3.3.8" />
+	  </dependencies>
+  </metadata>
+  <files>
+    <file src="..\packages\Expression.Blend.Sdk.1.0.2\lib\net40-client\System.Windows.Interactivity.dll" target="lib\net40" />
+    <file src="..\packages\Expression.Blend.Sdk.1.0.2\lib\net45\System.Windows.Interactivity.dll" target="lib\net45" />
+  </files>
+</package>

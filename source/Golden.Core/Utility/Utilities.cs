@@ -312,7 +312,8 @@ namespace Golden.Utility
         #region Disposing
         public static void Dispose(object obj)
         {
-            if (obj != null && typeof(IDisposable).IsAssignableFrom(obj.GetType())) { ((IDisposable)obj).Dispose(); }
+            if (obj != null && typeof(IDisposable).IsAssignableFrom(obj.GetType()))
+                ((IDisposable)obj).Dispose();
         }
         public static void Dispose(object obj1, object obj2)
         {

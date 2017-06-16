@@ -2,6 +2,9 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
 		xmlns:local="clr-namespace:Golden.Win.Sample"
+        xmlns:i="http://schemas.microsoft.com/expression/2010/interactivity"
+        xmlns:gmvvm="clr-namespace:Golden.Mvvm.Interactivity;assembly=Golden.Win"
+        xmlns:gconvert="clr-namespace:Golden.Win.Converters;assembly=Golden.Win"
         Title="{Binding Title}" Height="350" Width="525" WindowStartupLocation="CenterScreen">
     <Grid Margin="5">
         <Grid.ColumnDefinitions>
@@ -16,11 +19,23 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <Label Content="Name:" VerticalAlignment="Center" />
+        <Label Content="Name:" VerticalAlignment="Center" Cursor="Hand" FontWeight="Bold">
+            <i:Interaction.Triggers>
+                <i:EventTrigger EventName="MouseDown">
+                    <gmvvm:EventToCommand Command="{Binding TMouseDownCommand}" PassEventArgsToCommand="True" />
+                </i:EventTrigger>
+            </i:Interaction.Triggers>
+        </Label>
         <TextBox Height="23" Grid.Column="1"
 				 Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" 
 				 ToolTip="{Binding RelativeSource={RelativeSource Self}, Path=(Validation.Errors)[0].ErrorContent}" />
-        <Label Content="BirthDate:" VerticalAlignment="Center" Grid.Row="1" />
+        <Label Content="BirthDate:" VerticalAlignment="Center" Grid.Row="1" Cursor="Hand" FontWeight="Bold">
+            <i:Interaction.Triggers>
+                <i:EventTrigger EventName="MouseUp">
+                    <gmvvm:EventToMethod MethodName="TMouseUp" Source="{Binding}" PassEventArgsToMethod="True" />
+                </i:EventTrigger>
+            </i:Interaction.Triggers>
+        </Label>
         <DatePicker Height="23" Grid.Column="1" Grid.Row="1"
 				 Text="{Binding BirthDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" 
 				 ToolTip="{Binding RelativeSource={RelativeSource Self}, Path=(Validation.Errors)[0].ErrorContent}" />
@@ -29,6 +44,6 @@
                  Text="{Binding Age, Mode=OneWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" Grid.Column="1" Grid.Row="2" />
         <Label Content="Marks:" Grid.Row="3" VerticalAlignment="Top" />
         <ListBox ItemsSource="{Binding Marks, Mode=OneTime}" Grid.Column="1" Margin="0,5,0,5" Grid.Row="3" />
-        <Button Content="Save" Cursor="Hand" MinHeight="25" IsDefault="True" Command="{Binding SaveCommand, Mode=OneTime}" Grid.Row="4" Grid.ColumnSpan="2" />
+        <Button Content="Save" Cursor="Hand" MinHeight="25" Command="{Binding SaveCommand, Mode=OneTime}" IsDefault="True" Grid.Row="4" Grid.ColumnSpan="2" />
     </Grid>
 </Window>

@@ -182,16 +182,6 @@ namespace System.Data.Entity
     }
     public static class DbContextExtensions
     {
-        private struct VoidResult
-        {
-            public readonly object Result;
-
-            public VoidResult(object result)
-            {
-                this.Result = result;
-            }
-        }
-
         private static readonly Lazy<MethodInfo> mTranslate = new Lazy<MethodInfo>(() =>
         {
             return typeof(ObjectContext)
@@ -214,10 +204,6 @@ namespace System.Data.Entity
                 .FirstOrDefault(mi => mi.GetParameters().Length == 1);
         });
 
-        public static ObjectContext ObjectContext(this DbContext context)
-        {
-            return (context as IObjectContextAdapter).ObjectContext;
-        }
         public static DbContext DbContext(this Database db)
         {
             var iContext = TypeHelper.GetMemberValue("_internalContext", db);
@@ -227,6 +213,64 @@ namespace System.Data.Entity
         {
             var iContext = TypeHelper.GetMemberValue("_internalContext", db);
             return (TypeHelper.GetMemberValue("ObjectContext", iContext) as ObjectContext);
+        }
+        public static DataTable ExecuteToDataTable(this Database db, string cmdText, params object[] parameters)
+        {
+            var cmd = db.Connection.CreateCommand();
+            cmd.CommandType = CommandType.Text;
+            if (db.CurrentTransaction != null)
+                cmd.Transaction = db.CurrentTransaction.UnderlyingTransaction;
+            var cmdParams = parameters.Select((pi, i) =>
+            {
+                if (pi is DbParameter)
+                    return (DbParameter)pi;
+                else
+                    return new SqlClient.SqlParameter("@_".Append(i.ToString()), (parameters[i] ?? DBNull.Value));
+            }).ToList();
+            if (parameters.Length > 0 && !(parameters[0] is DbParameter))
+            {
+                cmdText = string.Format(cmdText, cmdParams.Select(dbp => (object)dbp.ParameterName).ToArray());
+            }
+            cmd.CommandText = cmdText;
+            cmdParams.ForEach(p => cmd.Parameters.Add(p));
+
+            var table = new DataTable();
+            using (var adapter = new SqlClient.SqlDataAdapter((SqlClient.SqlCommand)cmd))
+            {
+                adapter.Fill(table);
+            }
+            return table;
+        }
+        public static DataSet ExecuteToDataSet(this Database db, string cmdText, params object[] parameters)
+        {
+            var cmd = db.Connection.CreateCommand();
+            cmd.CommandType = CommandType.Text;
+            if (db.CurrentTransaction != null)
+                cmd.Transaction = db.CurrentTransaction.UnderlyingTransaction;
+            var cmdParams = parameters.Select((pi, i) =>
+            {
+                if (pi is DbParameter)
+                    return (DbParameter)pi;
+                else
+                    return new SqlClient.SqlParameter("@_".Append(i.ToString()), (parameters[i] ?? DBNull.Value));
+            }).ToList();
+            if (parameters.Length > 0 && !(parameters[0] is DbParameter))
+            {
+                cmdText = string.Format(cmdText, cmdParams.Select(dbp => (object)dbp.ParameterName).ToArray());
+            }
+            cmd.CommandText = cmdText;
+            cmdParams.ForEach(p => cmd.Parameters.Add(p));
+
+            var dataSet = new DataSet();
+            using (var adapter = new SqlClient.SqlDataAdapter((SqlClient.SqlCommand)cmd))
+            {
+                adapter.Fill(dataSet);
+            }
+            return dataSet;
+        }
+        public static ObjectContext ObjectContext(this DbContext context)
+        {
+            return (context as IObjectContextAdapter).ObjectContext;
         }
         public static int SaveDbChanges(this DbContext context)
         {
