@@ -9,7 +9,10 @@
 	{
 		private static readonly Lazy<RightToLeftToFlowDirectionConverter> _Default = new Lazy<RightToLeftToFlowDirectionConverter>(()=> new RightToLeftToFlowDirectionConverter());
 
-		public static RightToLeftToFlowDirectionConverter Default { get { return _Default.Value; } }
+		public static RightToLeftToFlowDirectionConverter Default
+        {
+            get { return _Default.Value; }
+        }
 
 		public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
 		{

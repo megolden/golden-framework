@@ -16,9 +16,6 @@ namespace Golden.Win.Sample.ViewModels
     {
         public virtual string Title { get; set; }
 
-        public AppViewModel() : this(default(TView))
-        {
-        }
         public AppViewModel(TView view) : base(view)
         {
         }

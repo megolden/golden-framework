@@ -59,8 +59,10 @@
     </Page>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Converters\BinaryConverter.cs" />
     <Compile Include="Converters\BooleanToVisibilityConverter.cs" />
     <Compile Include="Converters\RightToLeftToFlowDirectionConverter.cs" />
+    <Compile Include="Converters\UnaryConverter.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="Mvvm\IClosable.cs" />
     <Compile Include="Mvvm\Configuration.cs" />

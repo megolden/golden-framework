@@ -1,56 +1,50 @@
-﻿using Golden.Utility;
+﻿using Autofac;
 using Golden.Mvvm;
-using Golden.Win.Sample.Applications;
+using Golden.Win.Sample.ViewModels;
 using Golden.Win.Sample.Components;
 using Golden.Win.Sample.Views;
 using System;
 using System.Windows;
-using System.Windows.Input;
 
 namespace Golden.Win.Sample
 {
-    public partial class App : Application
+    public partial class App : Application, IApplication
     {
+        public IView MainView
+        {
+            get { return (this.MainWindow as IView); }
+            set { this.MainWindow = value as Window; }
+        }
+
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
 
-            //Register view model configurations.
-            //MvvmHelper.RegisterConfiguration<MainWindowViewModel>(config =>
-            //{
-            //    config.OnCreated("OnCreated");
-
-            //    config.Property(m => new { m.Title, m.Name, m.BirthDate });
-            //    config.Property(m => m.Title)
-            //        .HasDefaultValue("Student Information");
-            //    config.Property(m => m.BirthDate)
-            //        .HasDependency(m => m.Age)
-            //        .OnChanging("BirthDateChanging")
-            //        .OnChanged("BirthDateChanged");
-
-            //    config.Command(m => m.Save).CanExecute("CanSave");
-            //    config.Command<MouseButtonEventArgs>(m => m.TMouseDown);
-            //});
+            //Dependency Injections
+            DIConfig.Register();
 
             //Common WindowsApplication initializations.
             System.Windows.Forms.Application.EnableVisualStyles();
             this.ShutdownMode = ShutdownMode.OnMainWindowClose;
 
-            //Catch not handled exceptions.
-            this.DispatcherUnhandledException += (s, ea) => { ea.Handled = HandleException(ea.Exception); };
-            AppDomain.CurrentDomain.UnhandledException += (s, ea) => HandleException(ea.ExceptionObject as Exception);
+            //Not handled exceptions.
+            this.DispatcherUnhandledException += (s, ea) =>
+                ea.Handled = DIConfig.Injector.Resolve<IApplication>().HandleException(ea.Exception);
+            AppDomain.CurrentDomain.UnhandledException += (s, ea) => 
+                DIConfig.Injector.Resolve<IApplication>().HandleException(ea.ExceptionObject as Exception);
 
+            //Start application
             Start(e.Args);
         }
         private void Start(string[] args)
         {
-            var viewModel = MvvmHelper.CreateViewModel<MainWindowViewModel>(new MainWindow());
-            this.MainWindow = viewModel.View as Window;
+            var viewModel = DIConfig.Injector.Resolve<MainWindowViewModel>();
+            DIConfig.Injector.Resolve<IApplication>().MainView = viewModel.View;
             viewModel.View.Show();
         }
-        public bool HandleException(Exception ex)
+        public bool HandleException(Exception exception)
         {
-            if (ex == null) return true;
+            if (exception == null) return true;
 
             //Write code here
             return true;

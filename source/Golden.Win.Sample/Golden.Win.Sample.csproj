@@ -40,6 +40,9 @@
     <ApplicationIcon>Resources\Icons\AppIcon.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Autofac">
+      <HintPath>..\packages\Autofac.4.6.0\lib\net45\Autofac.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Data" />
     <Reference Include="System.Drawing" />
@@ -64,6 +67,11 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Components\IApplication.cs" />
+    <Compile Include="Services\Interfaces\IModalService.cs" />
+    <Compile Include="Components\DIConfig.cs" />
+    <Compile Include="Views\Interfaces\IMessageBoxView.cs" />
+    <Compile Include="Services\ModalService.cs" />
     <Compile Include="Views\MessageBoxView.xaml.cs">
       <DependentUpon>MessageBoxView.xaml</DependentUpon>
     </Compile>
@@ -76,7 +84,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Components\IWindowView.cs" />
-    <Compile Include="IViews\IMainWindowView.cs" />
+    <Compile Include="Views\Interfaces\IMainWindowView.cs" />
     <Compile Include="ViewModels\AppViewModel.cs" />
     <Compile Include="ViewModels\MainWindowViewModel.cs" />
     <Compile Include="ViewModels\MessageBoxViewModel.cs" />
@@ -128,7 +136,9 @@
   <ItemGroup>
     <EmbeddedResource Include="Resources\Icons\AppIcon.ico" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <Resource Include="Resources\Images\AppIcon_16.png" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

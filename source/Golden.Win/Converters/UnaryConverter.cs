@@ -1,0 +1,56 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Data;
+
+namespace Golden.Win.Converters
+{
+    [ValueConversion(typeof(object), typeof(object))]
+    public class UnaryConverter : IValueConverter
+    {
+        private static readonly Lazy<UnaryConverter> _Default = new Lazy<UnaryConverter>(() => new UnaryConverter());
+
+        public static UnaryConverter Default
+        {
+            get { return _Default.Value; }
+        }
+
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            if (parameter == null) return value;
+
+            var strOp = parameter.ToString();
+            if ("Not".Equals(strOp, StringComparison.OrdinalIgnoreCase))
+            {
+                return (!object.ReferenceEquals(value, null) ? (object)(!(bool)value) : null);
+            }
+            else if ("IsNull".Equals(strOp, StringComparison.OrdinalIgnoreCase))
+            {
+                return object.ReferenceEquals(value, null);
+            }
+            else if ("IsNotNull".Equals(strOp, StringComparison.OrdinalIgnoreCase))
+            {
+                return (!object.ReferenceEquals(value, null));
+            }
+            else if ("IsNullOrEmpty".Equals(strOp, StringComparison.OrdinalIgnoreCase))
+            {
+                return (object.ReferenceEquals(value, null) || string.Empty.Equals(value));
+            }
+            else if ("IsNotNullOrEmpty".Equals(strOp, StringComparison.OrdinalIgnoreCase))
+            {
+                return (!object.ReferenceEquals(value, null) && !string.Empty.Equals(value));
+            }
+            else if ("ToString".Equals(strOp, StringComparison.OrdinalIgnoreCase))
+            {
+                return (object.ReferenceEquals(value, null) ? null : Golden.Utility.Utilities.Convert<string>(value));
+            }
+            return value;
+        }
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            throw new NotSupportedException();
+        }
+    }
+}

@@ -4,9 +4,28 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Golden.Win.Sample.Views"
-        mc:Ignorable="d" WindowStartupLocation="CenterScreen" WindowStyle="SingleBorderWindow"
-        Title="MessageBoxView" Height="200" Width="400">
-    <Grid>
-        <Button Command="{Binding ResultCommand, Mode=OneTime}" CommandParameter="OK" Content="OK" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="10,5,10,5" />
+        xmlns:gconvert="clr-namespace:Golden.Win.Converters;assembly=Golden.Win"
+        mc:Ignorable="d" WindowStartupLocation="CenterScreen" WindowStyle="SingleBorderWindow" ShowInTaskbar="False" ResizeMode="NoResize"
+        Title="{Binding Title, UpdateSourceTrigger=PropertyChanged}" MinHeight="130" MinWidth="300" SizeToContent="WidthAndHeight">
+    <Window.Resources>
+        <Style x:Key="ResultButton" TargetType="{x:Type Button}">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Command" Value="{Binding ResultCommand, Mode=OneTime}" />
+            <Setter Property="MinWidth" Value="75" />
+            <Setter Property="MinHeight" Value="25" />
+        </Style>
+    </Window.Resources>
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <TextBlock Text="{Binding Message, UpdateSourceTrigger=PropertyChanged}" TextTrimming="WordEllipsis" TextWrapping="Wrap" />
+        <StackPanel Name="ButtonsPanel" Orientation="Horizontal" Grid.Row="1" Margin="10,10,10,0" HorizontalAlignment="Center">
+            <Button Name="OKButton" Style="{StaticResource ResultButton}" CommandParameter="OK" Content="OK" />
+            <Button Name="YesButton" Style="{StaticResource ResultButton}" CommandParameter="Yes" Content="Yes" Margin="5,0,0,0" />
+            <Button Name="NoButton" Style="{StaticResource ResultButton}" CommandParameter="No" Content="No" Margin="5,0,0,0" />
+            <Button Name="CancelButton" Style="{StaticResource ResultButton}" CommandParameter="Cancel" Content="Cancel" Margin="5,0,0,0" />
+        </StackPanel>
     </Grid>
 </Window>

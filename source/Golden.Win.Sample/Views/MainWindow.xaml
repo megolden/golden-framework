@@ -5,7 +5,15 @@
         xmlns:i="http://schemas.microsoft.com/expression/2010/interactivity"
         xmlns:gmvvm="clr-namespace:Golden.Mvvm.Interactivity;assembly=Golden.Win"
         xmlns:gconvert="clr-namespace:Golden.Win.Converters;assembly=Golden.Win"
-        Title="{Binding Title}" Height="350" Width="525" WindowStartupLocation="CenterScreen">
+        Title="{Binding Title}" Height="350" Width="525" WindowStartupLocation="CenterScreen" Icon="/Resources/Images/AppIcon_16.png">
+    <i:Interaction.Triggers>
+        <i:EventTrigger EventName="Closing">
+            <gmvvm:EventToCommand Command="{Binding OnClosingCommand}" PassEventArgsToCommand="True" />
+        </i:EventTrigger>
+        <i:EventTrigger EventName="PreviewKeyDown">
+            <gmvvm:EventToMethod MethodName="OnPreviewKeyDown" Source="{Binding}" PassEventArgsToMethod="True" />
+        </i:EventTrigger>
+    </i:Interaction.Triggers>
     <Grid Margin="5">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto"/>
@@ -18,24 +26,11 @@
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-
-        <Label Content="Name:" VerticalAlignment="Center" Cursor="Hand" FontWeight="Bold">
-            <i:Interaction.Triggers>
-                <i:EventTrigger EventName="MouseDown">
-                    <gmvvm:EventToCommand Command="{Binding TMouseDownCommand}" PassEventArgsToCommand="True" />
-                </i:EventTrigger>
-            </i:Interaction.Triggers>
-        </Label>
+        <Label Content="Name:" VerticalAlignment="Center" />
         <TextBox Height="23" Grid.Column="1"
 				 Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" 
 				 ToolTip="{Binding RelativeSource={RelativeSource Self}, Path=(Validation.Errors)[0].ErrorContent}" />
-        <Label Content="BirthDate:" VerticalAlignment="Center" Grid.Row="1" Cursor="Hand" FontWeight="Bold">
-            <i:Interaction.Triggers>
-                <i:EventTrigger EventName="MouseUp">
-                    <gmvvm:EventToMethod MethodName="TMouseUp" Source="{Binding}" PassEventArgsToMethod="True" />
-                </i:EventTrigger>
-            </i:Interaction.Triggers>
-        </Label>
+        <Label Content="BirthDate:" VerticalAlignment="Center" Grid.Row="1" />
         <DatePicker Height="23" Grid.Column="1" Grid.Row="1"
 				 Text="{Binding BirthDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" 
 				 ToolTip="{Binding RelativeSource={RelativeSource Self}, Path=(Validation.Errors)[0].ErrorContent}" />

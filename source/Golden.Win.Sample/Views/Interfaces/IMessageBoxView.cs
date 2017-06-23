@@ -4,9 +4,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace Golden.Win.Sample.Applications
+namespace Golden.Win.Sample.Views.Interfaces
 {
-    public interface IMainWindowView : IWindowView
+    public interface IMessageBoxView : IWindowView
 	{
 	}
 }

@@ -73,7 +73,7 @@ namespace Golden.Mvvm
         internal static bool EmitPushValue(object value, ILGenerator ilGen) => (bool)mEmitPushValue.Value.Invoke(null, new object[] { value, ilGen });
         private static Type CreateViewModelProxy(Configuration.IViewModelConfiguration configuration)
         {
-            if (configuration.Commands.Count == 0 && configuration.Properties.Count==0 && configuration.OnCreatedMethod == null)
+            if (configuration.Commands.Count == 0 && configuration.Properties.Count == 0 && configuration.OnCreatedMethod == null)
             {
                 return configuration.Type;
             }
@@ -463,6 +463,17 @@ namespace Golden.Mvvm
 
             return (ViewModelBase)Activator.CreateInstance(_ViewModelMap[type].Value, ctorArgs);
         }
+        public static Type CreateViewModelProxy(Type type)
+        {
+            if (!_ViewModelMap.ContainsKey(type))
+                RegisterConfiguration(type);
+
+            return _ViewModelMap[type].Value;
+        }
+        public static Type CreateViewModelProxy<T>() where T : ViewModelBase
+        {
+            return CreateViewModelProxy(typeof(T));
+        }
         private static void RegisterConfiguration(Type type, Configuration.IViewModelConfiguration configuration)
         {
             if (configuration == null) configuration = (Configuration.IViewModelConfiguration)Activator.CreateInstance(typeof(Configuration.ViewModelConfiguration<>).MakeGenericType(type));
@@ -594,7 +605,7 @@ namespace Golden.Mvvm
                                     new object[] { dpName });
                             });
                         }
-                    } 
+                    }
                     #endregion
                 }
 
@@ -605,7 +616,21 @@ namespace Golden.Mvvm
                 {
                     if (mRegister.IsGenericMethod)
                         mRegister = mRegister.MakeGenericMethod(type);
-                    var owner = (mRegister.IsStatic ? null : Activator.CreateInstance(type, new object[] { }));
+                    object owner = null;
+                    if (!mRegister.IsStatic)
+                    {
+                        var ctorArgs =
+                        (
+                            type.GetConstructors()
+                            .Select(ci => new { Info = ci, Parameters = ci.GetParameters().Select(p => (p.ParameterType.IsByRef ? p.ParameterType.GetElementType() : p.ParameterType)).ToArray() })
+                            .OrderBy(x => x.Parameters.Length)
+                            .FirstOrDefault()?
+                            .Parameters.Select(t => TypeHelper.GetDefault(t)).ToArray()
+                            ??
+                            new object[0]
+                        );
+                        owner = Activator.CreateInstance(type, ctorArgs);
+                    }
                     mRegister.Invoke(owner, new object[] { config });
                     Utilities.DisposeAndNull(ref owner);
                 }

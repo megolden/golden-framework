@@ -12,7 +12,10 @@ namespace Golden.Win.Converters
 	{
 		private static readonly Lazy<BooleanToVisibilityConverter> _Default = new Lazy<BooleanToVisibilityConverter>(()=> new BooleanToVisibilityConverter());
 
-		public static BooleanToVisibilityConverter Default { get { return _Default.Value; } }
+		public static BooleanToVisibilityConverter Default
+        {
+            get { return _Default.Value; }
+        }
 
 		public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
 		{

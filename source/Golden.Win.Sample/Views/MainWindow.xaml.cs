@@ -2,7 +2,7 @@
 using Golden.Annotations;
 using System.Globalization;
 using System.Windows;
-using Golden.Win.Sample.Applications;
+using Golden.Win.Sample.Views.Interfaces;
 
 namespace Golden.Win.Sample.Views
 {

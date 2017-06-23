@@ -3,21 +3,28 @@ using Golden.Mvvm;
 using Golden.Mvvm.Configuration;
 using Golden.Mvvm.Configuration.Annotations;
 using Golden.Mvvm.Interactivity;
+using Golden.Win.Sample.Components;
+using Golden.Win.Sample.Views.Interfaces;
 using Golden.Win.Sample.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Data;
 using System.Data.SqlClient;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using System.Windows;
 using System.Windows.Input;
+using Golden.Win.Sample.Services.Interfaces;
 
-namespace Golden.Win.Sample.Applications
+namespace Golden.Win.Sample.ViewModels
 {
     public class MainWindowViewModel : AppViewModel<IMainWindowView>
     {
+        private readonly IModalService svcModal;
+
         public override string Title
         {
             get {return base.Title;}
@@ -35,19 +42,17 @@ namespace Golden.Win.Sample.Applications
         }
         public ObservableCollection<float> Marks { get; } = new ObservableCollection<float>();
 
-        public MainWindowViewModel() : this(null)
+        public MainWindowViewModel(IMainWindowView view, IModalService svcModal) : base(view)
         {
-        }
-        public MainWindowViewModel(IMainWindowView view) : base(view)
-        {
+            this.svcModal = svcModal;
+
             AddRule(() => Age.HasValue, "'{0}' not specified", () => Age);
             AddRule(() => Age > 0, "'{0}' has invalid value '{1}'", () => Age);
             AddRule(() => !Name.IsNullOrWhiteSpace(), "'{0}' not specified", () => Name);
         }
         public void Save()
         {
-            var vm = MvvmHelper.CreateViewModel<MessageBoxViewModel>(new Views.MessageBoxView());
-            vm.View.ShowDialog();
+            svcModal.ShowMessageBox(this.Title, "Your data saved successfully!", MessageBoxButton.OK);
         }
         protected bool CanSave()
         {
@@ -67,13 +72,18 @@ namespace Golden.Win.Sample.Applications
             var random = new Random();
             Enumerable.Repeat(0, 10).ForEach(i => Marks.Add(random.Next(21)));
         }
-        public void TMouseDown(MouseButtonEventArgs args)
+        public void OnClosing(CancelEventArgs args)
         {
-            args.Handled = true;
+            var msgResult = svcModal.ShowMessageBox("Exit Confirm", "Are you sure you want to exit app ?", MessageBoxButton.YesNo);
+            args.Cancel = (msgResult != true);
         }
-        public void TMouseUp(object sender, MouseButtonEventArgs args)
+        public void OnPreviewKeyDown(object sender, KeyEventArgs args)
         {
-            args.Handled = true;
+            if (args.Key == Key.Q && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+            {
+                args.Handled = true;
+                this.View.Close();
+            }
         }
         protected virtual void OnViewModelRegister(ViewModelConfiguration<MainWindowViewModel> config)
         {
@@ -90,7 +100,7 @@ namespace Golden.Win.Sample.Applications
                 .OnChanged(() => BirthDateChanged);
 
             config.Command(() => Save).CanExecute(() => CanSave);
-            config.Command<MouseButtonEventArgs>(() => TMouseDown);
+            config.Command<CancelEventArgs>(() => OnClosing);
         }
     }
 }

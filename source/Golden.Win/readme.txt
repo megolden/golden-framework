@@ -1,0 +1,1 @@
+﻿Add 'System.Windows.Interactivity.dll' file to nuget package manualy.
