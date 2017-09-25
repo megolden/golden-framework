@@ -3,8 +3,6 @@ using Golden.Mvvm;
 using Golden.Mvvm.Configuration;
 using Golden.Mvvm.Configuration.Annotations;
 using Golden.Mvvm.Interactivity;
-using Golden.Win.Sample.Components;
-using Golden.Win.Sample.Views.Interfaces;
 using Golden.Win.Sample.ViewModels;
 using System;
 using System.Collections.Generic;
@@ -17,13 +15,15 @@ using System.Linq;
 using System.Text;
 using System.Windows;
 using System.Windows.Input;
-using Golden.Win.Sample.Services.Interfaces;
+using Golden.Win.Sample.Services;
+using Golden.Win.Sample.Components;
 
 namespace Golden.Win.Sample.ViewModels
 {
-    public class MainWindowViewModel : AppViewModel<IMainWindowView>
+    public class MainPageViewModel : AppViewModel
     {
         private readonly IModalService svcModal;
+        private readonly IApplicationService svcApp;
 
         public override string Title
         {
@@ -42,9 +42,10 @@ namespace Golden.Win.Sample.ViewModels
         }
         public ObservableCollection<float> Marks { get; } = new ObservableCollection<float>();
 
-        public MainWindowViewModel(IMainWindowView view, IModalService svcModal) : base(view)
+        public MainPageViewModel(IModalService svcModal, IApplicationService svcApp)
         {
             this.svcModal = svcModal;
+            this.svcApp = svcApp;
 
             AddRule(() => Age.HasValue, "'{0}' not specified", () => Age);
             AddRule(() => Age > 0, "'{0}' has invalid value '{1}'", () => Age);
@@ -52,7 +53,8 @@ namespace Golden.Win.Sample.ViewModels
         }
         public void Save()
         {
-            svcModal.ShowMessageBox(this.Title, "Your data saved successfully!", MessageBoxButton.OK);
+            MessageBox.Show(this.Title);
+            //svcModal.ShowMessageBox(this.Title, "Your data saved successfully!", MessageBoxButton.OK);
         }
         protected bool CanSave()
         {
@@ -82,10 +84,10 @@ namespace Golden.Win.Sample.ViewModels
             if (args.Key == Key.Q && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
             {
                 args.Handled = true;
-                this.View.Close();
+                svcApp.Shutdown();
             }
         }
-        protected virtual void OnViewModelRegister(ViewModelConfiguration<MainWindowViewModel> config)
+        protected virtual void OnViewModelRegister(ViewModelConfiguration<MainPageViewModel> config)
         {
             base.OnViewModelRegister(config);
 

@@ -7,19 +7,13 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Golden.Win.Sample.ViewModels
+namespace Golden.Win.Sample.Components
 {
     public abstract class AppViewModel : ViewModelBase
     {
-    }
-    public abstract class AppViewModel<TView> : ViewModelBase<TView> where TView : IView
-    {
         public virtual string Title { get; set; }
 
-        public AppViewModel(TView view) : base(view)
-        {
-        }
-        protected virtual void OnViewModelRegister<T>(ViewModelConfiguration<T> config) where T : AppViewModel<TView>
+        protected virtual void OnViewModelRegister<T>(ViewModelConfiguration<T> config) where T : AppViewModel
         {
             config.Property(() => Title)
                 .HasDefaultValue("");

@@ -19,15 +19,12 @@ namespace System.Data
 
     public static class DataExtensions
     {
-        private static Func<T, object[]> CreateSchema<T>(DataTable table)
+        internal static Delegate CreateSchema(Type type, DataTable table, IEnumerable<PropertyInfo> properties)
         {
-            var type = typeof(T);
             var objExp = Expression.Parameter(type, "obj");
             var propsExps = new List<Expression>();
-            foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance).OrderBy(p => (p.GetCustomAttribute<ColumnAttribute>()?.Order).GetValueOrDefault(int.MaxValue)))
+            foreach (var prop in properties)
             {
-                if (prop.IsDefined<IgnoreAttribute>(true)) continue;
-
                 var column = table.Columns.Add(prop.Name, (Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType));
                 column.AllowDBNull = Golden.Utility.TypeHelper.CanBeNull(prop.PropertyType);
                 column.ReadOnly = ((!prop.CanWrite) || (prop.GetSetMethod() != null));
@@ -44,26 +41,32 @@ namespace System.Data
                     propsExps.Add(propExp);
                 }
             }
-            return Expression.Lambda<Func<T, object[]>>(Expression.NewArrayInit(typeof(object), propsExps), objExp).Compile();
+            return Expression.Lambda(Expression.NewArrayInit(typeof(object), propsExps), objExp).Compile();
         }
-        private static Func<object[], T> InstanceCreator<T>(DataTable table)
+        private static Func<T, object[]> CreateSchema<T>(DataTable table)
         {
             var type = typeof(T);
+            var props = type
+                .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .OrderBy(p => (p.GetCustomAttribute<ColumnAttribute>()?.Order).GetValueOrDefault(int.MaxValue))
+                .Where(p => !p.IsDefined<IgnoreAttribute>(true));
+            return (Func<T, object[]>)CreateSchema(type, table, props);
+        }
+        internal static Delegate InstanceCreator(Type type, DataTable table, IEnumerable<PropertyInfo> properties)
+        {
             var itemArrayExp = Expression.Parameter(typeof(object[]), "itemArray");
             var propsBindExps = new List<MemberBinding>();
             Expression exp = null;
             var mIsDBNull = new Lazy<MethodInfo>(() => typeof(Convert).GetMethod(nameof(Convert.IsDBNull), BindingFlags.Public | BindingFlags.Static));
-            foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+            foreach (var prop in properties)
             {
-                if (((!prop.CanWrite) || (prop.GetSetMethod() == null)) || prop.GetIndexParameters().Length > 0) continue;
-
                 var column = table.Columns[prop.Name];
 
                 if (column == null) continue;
 
                 if (Golden.Utility.TypeHelper.CanBeNull(prop.PropertyType))
                 {
-                    //Name = (Convert.IsDBNull(itemArray[1]) ? null : (string)itemArray[1])
+                    //<Field> = (Convert.IsDBNull(itemArray[1]) ? null : (string)itemArray[1])
                     exp = Expression.ArrayIndex(itemArrayExp, Expression.Constant(column.Ordinal, typeof(int)));
                     exp = Expression.Condition(
                         Expression.Call(mIsDBNull.Value, exp),
@@ -78,33 +81,48 @@ namespace System.Data
                 }
                 propsBindExps.Add(Expression.Bind(prop, exp));
             }
-            return Expression.Lambda<Func<object[], T>>(Expression.MemberInit(Expression.New(type), propsBindExps), itemArrayExp).Compile();
+            return Expression.Lambda(Expression.MemberInit(Expression.New(type), propsBindExps), itemArrayExp).Compile();
         }
-        public static DataTable ToDataTable(this Collections.IEnumerable collection)
+        private static Func<object[], T> InstanceCreator<T>(DataTable table)
         {
-            if (collection == null)
-                throw new ArgumentNullException(nameof(collection));
-
-            var elementType = Golden.Utility.TypeHelper.GetElementType(collection.GetType());
-            var table = new DataTable(elementType.NonGenericName());
-            var mCreateSchema =
-                typeof(DataExtensions).GetMethod(nameof(DataExtensions.CreateSchema), BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
-                .MakeGenericMethod(elementType);
-            var dataRowExtractor = (Delegate)mCreateSchema.Invoke(null, new object[] { table });
+            var type = typeof(T);
+            var props = type.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+                .Where(p => ((!p.CanWrite) || (p.GetSetMethod() == null)) || p.GetIndexParameters().Length > 0);
+            return (Func<object[], T>)InstanceCreator(type, table, props);
+        }
+        internal static DataTable ToDataTable(this Collections.IEnumerable collection, Type elementType = null, Delegate instanceCreator = null, DataTable table = null)
+        {
+            if (elementType == null) elementType = Golden.Utility.TypeHelper.GetElementType(collection.GetType());
+            if (table == null) table = new DataTable(elementType.NonGenericName());
+            if (instanceCreator == null)
+            {
+                var mCreateSchema =
+                    typeof(DataExtensions).GetMember(nameof(DataExtensions.CreateSchema), BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
+                    .OfType<MethodInfo>().FirstOrDefault(m => m.GetParameters().Length == 1)
+                    .MakeGenericMethod(elementType);
+                instanceCreator = (Delegate)mCreateSchema.Invoke(null, new object[] { table });
+            }
             table.BeginLoadData();
             foreach (var item in collection)
             {
                 var row = table.NewRow();
-                row.ItemArray = (object[])dataRowExtractor.DynamicInvoke(item);
+                row.ItemArray = (object[])instanceCreator.DynamicInvoke(item);
                 table.Rows.Add(row);
             }
             table.EndLoadData();
 
             return table;
         }
+        public static DataTable ToDataTable(this Collections.IEnumerable collection)
+        {
+            if (collection == null)
+                throw new ArgumentNullException(nameof(collection));
+
+            return ToDataTable(collection, (Type)null, (Delegate)null, (DataTable)null);
+        }
         public static DataTable ToDataTable<T>(this IEnumerable<T> collection)
         {
-            return ((Collections.IEnumerable)collection).ToDataTable();
+            return ((Collections.IEnumerable)collection).ToDataTable(elementType: typeof(T));
         }
         public static IEnumerable<T> ToEnumerable<T>(this DataTable table) where T : new()
         {
@@ -138,6 +156,8 @@ namespace System.Data.Entity
     using Linq.Expressions;
     using Golden.Utility;
     using Common;
+    using SqlClient;
+    using Golden.GoldenExtensions;
 
     public static class DbModelExtensions
     {
@@ -182,6 +202,7 @@ namespace System.Data.Entity
     }
     public static class DbContextExtensions
     {
+        #region Fields
         private static readonly Lazy<MethodInfo> mTranslate = new Lazy<MethodInfo>(() =>
         {
             return typeof(ObjectContext)
@@ -203,6 +224,7 @@ namespace System.Data.Entity
                 .OfType<MethodInfo>()
                 .FirstOrDefault(mi => mi.GetParameters().Length == 1);
         });
+        #endregion
 
         public static DbContext DbContext(this Database db)
         {
@@ -727,6 +749,225 @@ namespace System.Data.Entity
             }
 
             return new MultipleResult(results);
+        }
+        private static ICollection<DataTable> GetInsertData(ObjectContext context, ICollection<DbEntityEntry> entities)
+        {
+            return entities.GroupBy(e => e.Entity.GetType()).Select(gx =>
+            {
+                var entityType = gx.Key;
+                var tableInfo = MetadataMappingProvider.DefaultInstance.GetEntityMap(entityType, context);
+                var table = new DataTable(MetadataMappingProvider.QuoteIdentifier(tableInfo.TableName));
+                var props = tableInfo.PropertyMaps.Select(pn => entityType.GetProperty(pn.PropertyName));
+                var instanceCreator = DataExtensions.CreateSchema(entityType, table, props);
+                DataExtensions.ToDataTable(gx.Select(ge => ge.Entity), entityType, instanceCreator, table);
+                return table;
+            })
+            .ToList();
+        }
+        private static ICollection<SqlCommand> GetUpdateCommands(ObjectContext context, ICollection<DbEntityEntry> entities, int batchSize = 0)
+        {
+            if (entities.Count == 0) return new SqlCommand[0];
+
+            const int MaxCommandParameterCount = 2000;
+
+            var cmdList = new List<SqlCommand>();
+            var strCmd = new StringBuilder();
+            int stmtCount = 0;
+            Func<SqlCommand> fnGetNewCommand = () =>
+            {
+                var cmd = new SqlCommand();
+                cmdList.Add(cmd);
+                strCmd = new StringBuilder();
+                stmtCount = 0;
+                return cmd;
+            };
+
+            var sqlCmd = fnGetNewCommand.Invoke();
+            foreach (var e in entities)
+            {
+                var entityType = e.Entity.GetType();
+                var tableInfo = MetadataMappingProvider.DefaultInstance.GetEntityMap(entityType, context);
+                var tableName = MetadataMappingProvider.QuoteIdentifier(tableInfo.TableName);
+                var paramList = new List<SqlParameter>();
+                var propValues = tableInfo.PropertyMaps
+                .Select(pm => new
+                {
+                    ColumnName = pm.ColumnName,
+                    Property = e.Property(pm.PropertyName),
+                    IsKey = pm.IsKey
+                })
+                .ToList();
+                var eCmd = string.Concat("UPDATE ", tableName, " SET ", propValues.Where(x => !x.IsKey && x.Property.IsModified).Select(x =>
+                {
+                    var sqlParam = new SqlParameter(string.Concat("@p", sqlCmd.Parameters.Count + paramList.Count + 1), x.Property.CurrentValue);
+                    paramList.Add(sqlParam);
+                    return string.Concat(MetadataMappingProvider.QuoteIdentifier(x.ColumnName), "=", sqlParam.ParameterName);
+
+                }).Join(","), " WHERE ", propValues.Where(x => x.IsKey).Select(x =>
+                {
+                    var sqlParam = new SqlParameter(string.Concat("@p", sqlCmd.Parameters.Count + paramList.Count + 1), x.Property.CurrentValue);
+                    paramList.Add(sqlParam);
+                    return string.Concat(MetadataMappingProvider.QuoteIdentifier(x.ColumnName), "=", sqlParam.ParameterName);
+
+                }).Join(" AND "), ";");
+
+                if (sqlCmd.Parameters.Count >= MaxCommandParameterCount || (batchSize > 0 && stmtCount >= batchSize))
+                {
+                    sqlCmd.CommandText = strCmd.ToString();
+                    sqlCmd = fnGetNewCommand.Invoke();
+                }
+                
+                strCmd.Append(eCmd);
+                sqlCmd.Parameters.AddRange(paramList.ToArray());
+                stmtCount++;
+            }
+
+            if (strCmd.Length > 0)
+            {
+                sqlCmd.CommandText = strCmd.ToString();
+            }
+            else
+            {
+                cmdList.Remove(sqlCmd);
+            }
+            return cmdList;
+        }
+        private static ICollection<SqlCommand> GetDeleteCommands(ObjectContext context, ICollection<DbEntityEntry> entities, int batchSize = 0)
+        {
+            if (entities.Count == 0) return new SqlCommand[0];
+
+            const int MaxCommandParameterCount = 2000;
+
+            var cmdList = new List<SqlCommand>();
+            var strCmd = new StringBuilder();
+            int stmtCount = 0;
+            Func<SqlCommand> fnGetNewCommand = () =>
+            {
+                var cmd = new SqlCommand();
+                cmdList.Add(cmd);
+                strCmd = new StringBuilder();
+                stmtCount = 0;
+                return cmd;
+            };
+
+            var sqlCmd = fnGetNewCommand();
+            foreach (var e in entities)
+            {
+                var entityType = e.Entity.GetType();
+                var tableInfo = MetadataMappingProvider.DefaultInstance.GetEntityMap(entityType, context);
+                var tableName = MetadataMappingProvider.QuoteIdentifier(tableInfo.TableName);
+                var paramList = new List<SqlParameter>();
+                var propValues = tableInfo.PropertyMaps.Where(pm=>pm.IsKey)
+                .Select(pm => new
+                {
+                    ColumnName = pm.ColumnName,
+                    Value = e.Property(pm.PropertyName).OriginalValue
+                })
+                .ToList();
+
+                var eCmd = string.Concat("DELETE FROM ", tableName, " WHERE ", propValues.Select(x =>
+                {
+                    var sqlParam = new SqlParameter(string.Concat("@p", sqlCmd.Parameters.Count + paramList.Count + 1), x.Value);
+                    paramList.Add(sqlParam);
+                    return string.Concat(MetadataMappingProvider.QuoteIdentifier(x.ColumnName), "=", sqlParam.ParameterName);
+
+                }).Join(" AND "), ";");
+
+                if (sqlCmd.Parameters.Count >= MaxCommandParameterCount || (batchSize > 0 && stmtCount >= batchSize))
+                {
+                    sqlCmd.CommandText = strCmd.ToString();
+                    sqlCmd = fnGetNewCommand.Invoke();
+                }
+
+                strCmd.Append(eCmd);
+                sqlCmd.Parameters.AddRange(paramList.ToArray());
+                stmtCount++;
+            }
+            
+            if (strCmd.Length > 0)
+            {
+                sqlCmd.CommandText = strCmd.ToString();
+            }
+            else
+            {
+                cmdList.Remove(sqlCmd);
+            }
+            return cmdList;
+        }
+        public static void BulkSaveChanges(this DbContext context)
+        {
+            context.BulkSaveChanges(0);
+        }
+        public static void BulkSaveChanges(this DbContext context, int batchSize)
+        {
+            if (!context.ChangeTracker.HasChanges()) return;
+
+            var addedEntities = new List<DbEntityEntry>();
+            var modifiedEntities = new List<DbEntityEntry>();
+            var deletedEntities = new List<DbEntityEntry>();
+            context.ChangeTracker.Entries().ForEach(e =>
+            {
+                if (e.State.HasFlag(EntityState.Added)) addedEntities.Add(e);
+                if (e.State.HasFlag(EntityState.Modified)) modifiedEntities.Add(e);
+                if (e.State.HasFlag(EntityState.Deleted)) deletedEntities.Add(e);
+            });
+            var addedTables = GetInsertData(context.ObjectContext(), addedEntities);
+            var updateCmds = GetUpdateCommands(context.ObjectContext(), modifiedEntities, batchSize);
+            var deleteCmds = GetDeleteCommands(context.ObjectContext(), deletedEntities, batchSize);
+
+            bool prevConn = (context.Database.Connection.State != ConnectionState.Closed);
+            var prevTrans = (context.Database.CurrentTransaction != null);
+            SqlTransaction trans = null;
+            try
+            {
+                if (!prevConn) context.Database.Connection.Open();
+                trans = (prevTrans ? (SqlTransaction)context.Database.CurrentTransaction.UnderlyingTransaction : context.Database.BeginTransaction().UnderlyingTransaction.As<SqlTransaction>());
+                #region AddedEntities
+                addedTables.ForEach(t =>
+                {
+                    var bulkCopy = new SqlBulkCopy(
+                        context.Database.Connection.As<SqlConnection>(),
+                        SqlBulkCopyOptions.TableLock | SqlBulkCopyOptions.FireTriggers,
+                        trans);
+                    bulkCopy.DestinationTableName = t.TableName;
+                    t.Columns.OfType<DataColumn>().ForEach(c => bulkCopy.ColumnMappings.Add(c.ColumnName, c.ColumnName));
+                    if (batchSize > 0) bulkCopy.BatchSize = batchSize;
+                    bulkCopy.WriteToServer(t);
+                });
+                #endregion
+                #region ModifiedEntities
+                updateCmds.ForEach(cmd =>
+                {
+                    cmd.Connection = (SqlConnection)context.Database.Connection;
+                    cmd.Transaction = trans;
+                    cmd.ExecuteNonQuery();
+                });
+                #endregion
+                #region DeletedEntities
+                deleteCmds.ForEach(cmd =>
+                {
+                    cmd.Connection = (SqlConnection)context.Database.Connection;
+                    cmd.Transaction = trans;
+                    cmd.ExecuteNonQuery();
+                });
+                #endregion
+                if (!prevTrans)
+                {
+                    trans.Commit();
+                    trans.Dispose();
+                }
+                if (!prevConn) context.Database.Connection.Close();
+            }
+            catch
+            {
+                if (!prevTrans && trans != null)
+                {
+                    trans.Rollback();
+                    trans.Dispose();
+                }
+                if (!prevConn) context.Database.Connection.Close();
+                throw;
+            }
         }
     }
 }

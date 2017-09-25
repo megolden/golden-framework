@@ -71,15 +71,16 @@ namespace Golden.Mvvm
         });
         internal static bool EmitCanPushType(Type type) => (bool)mEmitCanPushType.Value.Invoke(null, new object[] { type });
         internal static bool EmitPushValue(object value, ILGenerator ilGen) => (bool)mEmitPushValue.Value.Invoke(null, new object[] { value, ilGen });
-        private static Type CreateViewModelProxy(Configuration.IViewModelConfiguration configuration)
+        private static Type CreateViewModelProxyType(Configuration.IViewModelConfiguration configuration)
         {
             if (configuration.Commands.Count == 0 && configuration.Properties.Count == 0 && configuration.OnCreatedMethod == null)
             {
                 return configuration.Type;
             }
 
+            var isViewModel = typeof(ViewModelBase).IsAssignableFrom(configuration.Type);
             var parentType = (configuration.Type ?? typeof(object));
-            var fullName = parentType.FullName/*.Append("Proxy")*/;
+            var fullName = parentType.FullName.Append("Proxy");
             ILGenerator ilGen = null;
             var moduleBuilder = mCreateDynamicModuleBuilder;
             var typeAttribs = TypeAttributes.Public;
@@ -121,17 +122,18 @@ namespace Golden.Mvvm
             #region Properties
             foreach (var propConfig in configuration.Properties)
             {
-                if (!TypeHelper.IsVirtualProperty(propConfig.BaseProperty))
-                {
-                    throw new InvalidOperationException($"The property '{propConfig.BaseProperty.Name}' must be declared virtual.");
-                }
-
+                //if (!TypeHelper.IsVirtualProperty(propConfig.BaseProperty))
+                //{
+                //    throw new InvalidOperationException($"The property '{propConfig.BaseProperty.Name}' must be declared virtual.");
+                //}
+                var isOverridable = TypeHelper.IsVirtualProperty(propConfig.BaseProperty);
                 var mFieldGet = propConfig.BaseProperty.GetGetMethod(true);
                 if (mFieldGet != null && mFieldGet.IsPrivate) mFieldGet = null;
                 var mFieldSet = propConfig.BaseProperty.GetSetMethod(true);
                 if (mFieldSet != null && mFieldSet.IsPrivate) mFieldSet = null;
                 var propertyBuilder = typeBuilder.DefineProperty(propConfig.BaseProperty.Name, PropertyAttributes.None, propConfig.BaseProperty.PropertyType, null);
                 var mGetSetAttribs = MethodAttributes.Public | MethodAttributes.Virtual | MethodAttributes.HideBySig | MethodAttributes.SpecialName | MethodAttributes.Final;
+                if (!isOverridable) mGetSetAttribs |= MethodAttributes.NewSlot;
                 #region Get
                 var getMethodBuilder = typeBuilder.DefineMethod(string.Concat("get_", propertyBuilder.Name), mGetSetAttribs, CallingConventions.HasThis, propertyBuilder.PropertyType, Type.EmptyTypes);
                 ilGen = getMethodBuilder.GetILGenerator();
@@ -141,7 +143,7 @@ namespace Golden.Mvvm
                 {
                     ilGen.Emit(OpCodes.Call, mFieldGet);
                     ilGen.Emit(OpCodes.Ret);
-                    typeBuilder.DefineMethodOverride(getMethodBuilder, mFieldGet);
+                    if (isOverridable) typeBuilder.DefineMethodOverride(getMethodBuilder, mFieldGet);
                 }
                 propertyBuilder.SetGetMethod(getMethodBuilder);
                 #endregion
@@ -179,7 +181,7 @@ namespace Golden.Mvvm
                     ilGen.Emit(OpCodes.Call, mFieldSet);
                     #endregion
                     #region ValidateProperty
-                    if (mValidateProperty.Value != null)
+                    if (isViewModel && mValidateProperty.Value != null)
                     {
                         ilGen.Emit(OpCodes.Nop);
                         ilGen.Emit(OpCodes.Ldarg_0);
@@ -215,7 +217,7 @@ namespace Golden.Mvvm
                     #endregion
                     ilGen.MarkLabel(lblRet);
                     ilGen.Emit(OpCodes.Ret);
-                    typeBuilder.DefineMethodOverride(setMethodBuilder, mFieldSet);
+                    if (isOverridable) typeBuilder.DefineMethodOverride(setMethodBuilder, mFieldSet);
 
                     propertyBuilder.SetSetMethod(setMethodBuilder);
                 }
@@ -447,37 +449,37 @@ namespace Golden.Mvvm
             configILGen.Emit(OpCodes.Ret);
             return typeBuilder.CreateType();
         }
-        public static T GetViewModel<T>(IView view)
-        {
-            return (T)view.DataContext;
-        }
+        //public static T GetViewModel<T>(IView view)
+        //{
+        //    return (T)view.DataContext;
+        //}
         private static readonly Dictionary<Type, Lazy<Type>> _ViewModelMap = new Dictionary<Type, Lazy<Type>>();
-        public static T CreateViewModel<T>(params object[] ctorArgs) where T : ViewModelBase
+        public static T CreateViewModel<T>(params object[] ctorArgs)
         {
             return (T)CreateViewModel(typeof(T), ctorArgs);
         }
-        public static ViewModelBase CreateViewModel(Type type, params object[] ctorArgs)
+        public static object CreateViewModel(Type type, params object[] ctorArgs)
         {
             if (!_ViewModelMap.ContainsKey(type))
                 RegisterConfiguration(type);
 
-            return (ViewModelBase)Activator.CreateInstance(_ViewModelMap[type].Value, ctorArgs);
+            return Activator.CreateInstance(_ViewModelMap[type].Value, ctorArgs);
         }
-        public static Type CreateViewModelProxy(Type type)
+        public static Type CreateViewModelProxyType(Type type)
         {
             if (!_ViewModelMap.ContainsKey(type))
                 RegisterConfiguration(type);
 
             return _ViewModelMap[type].Value;
         }
-        public static Type CreateViewModelProxy<T>() where T : ViewModelBase
+        public static Type CreateViewModelProxyType<T>()
         {
-            return CreateViewModelProxy(typeof(T));
+            return CreateViewModelProxyType(typeof(T));
         }
         private static void RegisterConfiguration(Type type, Configuration.IViewModelConfiguration configuration)
         {
             if (configuration == null) configuration = (Configuration.IViewModelConfiguration)Activator.CreateInstance(typeof(Configuration.ViewModelConfiguration<>).MakeGenericType(type));
-            _ViewModelMap[type] = new Lazy<Type>(() => CreateViewModelProxy(configuration));
+            _ViewModelMap[type] = new Lazy<Type>(() => CreateViewModelProxyType(configuration));
         }
         private static void RegisterConfiguration(Type type)
         {
@@ -486,7 +488,7 @@ namespace Golden.Mvvm
                 var configType = typeof(Configuration.ViewModelConfiguration<>).MakeGenericType(type);
                 var config = (Configuration.IViewModelConfiguration)Activator.CreateInstance(configType);
 
-                //By Attributes
+                #region ByAttributes
                 {
                     var typeMethods = type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
                         .Where(m => m.IsDefined<Configuration.Annotations.Initialize>() || m.IsDefined<Configuration.Annotations.Command>());
@@ -608,7 +610,8 @@ namespace Golden.Mvvm
                     }
                     #endregion
                 }
-
+                #endregion
+                #region RegisterMethod
                 var mRegister = type.GetMethod(ViewModelRegisterMethodName, BindingFlags.DeclaredOnly | BindingFlags.InvokeMethod | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance);
                 //if (mRegister == null)
                 //    mRegister = type.GetMethod(ViewModelRegisterMethodName, BindingFlags.InvokeMethod | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance);
@@ -634,19 +637,20 @@ namespace Golden.Mvvm
                     mRegister.Invoke(owner, new object[] { config });
                     Utilities.DisposeAndNull(ref owner);
                 }
-                return CreateViewModelProxy(config);
+                #endregion
+                return CreateViewModelProxyType(config);
             });
             _ViewModelMap[type] = creator;
         }
-        public static void RegisterConfiguration<T>() where T : ViewModelBase
+        public static void RegisterConfiguration<T>()
         {
             RegisterConfiguration(typeof(T));
         }
-        public static void RegisterConfiguration<T>(Configuration.ViewModelConfiguration<T> configuration) where T : ViewModelBase
+        public static void RegisterConfiguration<T>(Configuration.ViewModelConfiguration<T> configuration)
         {
             RegisterConfiguration(typeof(T), configuration);
         }
-        public static void RegisterConfiguration<T>(Action<Configuration.ViewModelConfiguration<T>> configurator) where T : ViewModelBase
+        public static void RegisterConfiguration<T>(Action<Configuration.ViewModelConfiguration<T>> configurator)
         {
             var config = new Configuration.ViewModelConfiguration<T>();
             configurator.Invoke(config);

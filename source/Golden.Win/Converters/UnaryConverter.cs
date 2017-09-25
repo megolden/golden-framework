@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Data;
 
 namespace Golden.Win.Converters
@@ -46,10 +47,23 @@ namespace Golden.Win.Converters
             {
                 return (object.ReferenceEquals(value, null) ? null : Golden.Utility.Utilities.Convert<string>(value));
             }
+			else if ("IsEqual".Equals(strOp, StringComparison.OrdinalIgnoreCase))
+            {
+				if (value == null) return (Golden.Utility.TypeHelper.CanBeNull(targetType) ? null : (object)false);
+				return object.Equals(value, Golden.Utility.Utilities.Convert(value.GetType(), parameter));
+            }
             return value;
         }
         public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
         {
+            var strOp = parameter?.ToString();
+			if ("IsEqual".Equals(strOp, StringComparison.OrdinalIgnoreCase))
+            {
+				if (value == null || !((bool)value))
+					return DependencyProperty.UnsetValue;
+				return Golden.Utility.Utilities.Convert(targetType, parameter);
+            }
+
             throw new NotSupportedException();
         }
     }

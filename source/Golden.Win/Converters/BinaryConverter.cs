@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Data;
@@ -55,6 +57,33 @@ namespace Golden.Win.Converters
             else if ("IsIn".Equals(strOp, StringComparison.OrdinalIgnoreCase))
             {
                 return Golden.Utility.Utilities.IsIn(values[0], values.Skip(1).Select(i => Golden.Utility.Utilities.Convert(values[0].GetType(), i)).ToArray());
+            }
+            else if ("ToCollection".Equals(strOp, StringComparison.OrdinalIgnoreCase))
+            {
+                Type elementType = null;
+                var firstElementType = false;
+                if (values.Length > 0 && values[0] is Type)
+                {
+                    elementType = (Type)values[0];
+                    firstElementType = true;
+                }
+                else
+                {
+                    elementType = Golden.Utility.TypeHelper.GetElementType(values.GetType());
+                }
+                if (elementType == null) elementType = typeof(object);
+                var colItems =
+                    typeof(Enumerable).GetMethod(nameof(Enumerable.OfType), BindingFlags.Public | BindingFlags.Static)
+                    .MakeGenericMethod(elementType)
+                    .Invoke(null, new object[] { (firstElementType ? values.Skip(1) : values) });
+                return Activator.CreateInstance(typeof(ObservableCollection<>).MakeGenericType(elementType), new object[] { colItems });
+            }
+			else if ("ToString".Equals(strOp, StringComparison.OrdinalIgnoreCase))
+            {
+				if (values.Length == 1)
+					return Golden.Utility.Utilities.Convert<string>(values[0]);
+				else if (values.Length == 2)
+					return string.Format(values[1].ToString(), values[0]);
             }
             return values;
         }

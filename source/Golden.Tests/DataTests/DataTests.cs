@@ -25,9 +25,32 @@ namespace Golden.Tests
         [TestMethod]
         public void DataContext()
         {
-            using (var db = new DBTestDbContext(@"Data Source=localhost;Initial Catalog=DBTest;Integrated Security=True"))
+            using (var db = new DBTestDbContext(@"Data Source=localhost;Initial Catalog=DBTest;Integrated Security=True;"))
             {
                 //goto NewTests;
+
+                var random = new Random();
+
+				////Bulk insert test
+                //db.Student.AddRange(Enumerable.Range(0, 10000).Select(_ => new Student
+                //{
+                //    Name = Enumerable.Range(0, 5).Select(__ => ((char)random.Next('A', 'Z' + 1)).ToString()).Join()
+                //}));
+                //db.BulkSaveChanges();
+
+				////Bulk update test
+                //db.Student.Where(s => s.Id >= 6006 && s.Id <= 11006).ForEach(m =>
+                //{
+                //    m.Name = Enumerable.Range(0, 5).Select(_ => ((char)random.Next('0', '9' + 1)).ToString()).Join();
+                //    m.BirthDate = DateTime.Now.AddHours(random.Next(0, 200));
+                //});
+                //db.BulkSaveChanges();
+
+				////Bulk delete test
+                //db.Student.Where(s => s.Id >= 1006 && s.Id <= 6005).ToList().ForValue(list => db.Student.RemoveRange(list));
+                //db.BulkSaveChanges();
+
+                Debugger.Break();
 
                 //a simple pagination method
                 var pagedResults = db.City.AsNoTracking()

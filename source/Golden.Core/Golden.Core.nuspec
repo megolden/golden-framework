@@ -12,6 +12,6 @@
     <description>$description$</description>
     <releaseNotes>Version $version$ includes performance improvements and bug fixes.</releaseNotes>
     <copyright>$copyright$</copyright>
-    <tags>golden goldenlibrary persiandatetime binaryexpression objectquery</tags>
+    <tags>golden goldenlibrary persiandatetime binaryexpression objectquery objectqueryable</tags>
   </metadata>
 </package>

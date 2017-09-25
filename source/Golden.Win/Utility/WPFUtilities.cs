@@ -1,14 +1,17 @@
 ﻿namespace Golden.Win.Utility
 {
     using System;
+    using System.Collections.Generic;
     using System.ComponentModel;
     using System.Drawing;
     using System.Globalization;
     using System.IO;
+    using System.Linq;
     using System.Runtime.InteropServices;
     using System.Threading;
     using System.Windows;
     using System.Windows.Interop;
+    using System.Windows.Media;
     using System.Windows.Media.Imaging;
 
     public static class WPFUtilities
@@ -79,5 +82,30 @@
 		{
 			return (new System.Drawing.Printing.PrinterSettings()).PrinterName;
 		}
-	}
+        public static IEnumerable<DependencyObject> GetVisualTreeParents(DependencyObject obj)
+        {
+            if (obj == null)
+                yield break;
+            var parent = VisualTreeHelper.GetParent(obj);
+            while(parent != null)
+            {
+                yield return parent;
+                parent = VisualTreeHelper.GetParent(obj);
+            }
+            yield break;
+        }
+        public static IEnumerable<DependencyObject> GetVisualTreeChildren(DependencyObject obj)
+        {
+            if (obj == null)
+                yield break;
+            var childCount = VisualTreeHelper.GetChildrenCount(obj);
+            for (int i = 0; i < childCount; i++)
+            {
+                var child = VisualTreeHelper.GetChild(obj, i);
+                yield return child;
+                foreach (var ch in GetVisualTreeChildren(child))
+                    yield return ch;
+            }
+        }
+    }
 }

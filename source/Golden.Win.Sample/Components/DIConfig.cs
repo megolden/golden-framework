@@ -3,10 +3,9 @@ using Autofac;
 using System.Reflection;
 using System.Linq;
 using Golden.Mvvm;
-using Golden.Win.Sample.Components;
 using Golden.Win.Sample.Services;
 using System.Windows;
-using Golden.Win.Sample.Services.Interfaces;
+using Golden.Win.Sample.Views;
 
 namespace Golden.Win.Sample
 {
@@ -26,21 +25,25 @@ namespace Golden.Win.Sample
         }
         public static void Register()
         {
+            builder.Register(_ => Application.Current).As<Application>();
+            builder.RegisterType<Shell>().AsSelf();
+
             //Services
             builder.RegisterType<ModalService>().As<IModalService>();
+            builder.RegisterType<ApplicationService>().As<IApplicationService>();
 
             //Components
-            builder.RegisterInstance(App.Current).As<IApplication>().SingleInstance();
+            //builder.RegisterInstance(App.Current).As<IApplication>().SingleInstance();
 
             //Views
-            Assembly.GetCallingAssembly().ExportedTypes
-                .Where(t => t.IsClass && !t.IsInterface && !t.IsAbstract && typeof(IView).IsAssignableFrom(t))
-                .ForEach(t => builder.RegisterType(t).AsImplementedInterfaces());
+            //Assembly.GetCallingAssembly().ExportedTypes
+            //    .Where(t => t.IsClass && !t.IsInterface && !t.IsAbstract && typeof(IView).IsAssignableFrom(t))
+            //    .ForEach(t => builder.RegisterType(t).AsImplementedInterfaces());
 
             //ViewModels
             Assembly.GetCallingAssembly().ExportedTypes
                 .Where(t => t.IsClass && !t.IsInterface && !t.IsAbstract && typeof(ViewModelBase).IsAssignableFrom(t))
-                .ForEach(t => builder.RegisterType(MvvmHelper.CreateViewModelProxy(t)).As(t));
+                .ForEach(t => builder.RegisterType(MvvmHelper.CreateViewModelProxyType(t)).As(t));
         }
     }
 }

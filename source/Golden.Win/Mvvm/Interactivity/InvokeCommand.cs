@@ -13,12 +13,12 @@ namespace Golden.Mvvm.Interactivity
         object Convert(object value, object args);
     }
 
-    public sealed class EventToCommand : TriggerAction<DependencyObject>
+    public sealed class InvokeCommand : TriggerAction<DependencyObject>
     {
         public static readonly DependencyProperty PassEventArgsToCommandProperty = DependencyProperty.Register(
             nameof(PassEventArgsToCommand),
             typeof(bool),
-            typeof(EventToCommand),
+            typeof(InvokeCommand),
             new PropertyMetadata(false));
         public bool PassEventArgsToCommand
         {
@@ -29,7 +29,7 @@ namespace Golden.Mvvm.Interactivity
         public static readonly DependencyProperty MarkRoutedEventsAsHandledProperty = DependencyProperty.Register(
             nameof(MarkRoutedEventsAsHandled),
             typeof(bool),
-            typeof(EventToCommand),
+            typeof(InvokeCommand),
             new PropertyMetadata(false));
         public bool MarkRoutedEventsAsHandled
         {
@@ -40,7 +40,7 @@ namespace Golden.Mvvm.Interactivity
         public static readonly DependencyProperty CommandProperty = DependencyProperty.Register(
             nameof(Command),
             typeof(ICommand),
-            typeof(EventToCommand));
+            typeof(InvokeCommand));
         public ICommand Command
         {
             get { return (ICommand)GetValue(CommandProperty); }
@@ -50,7 +50,7 @@ namespace Golden.Mvvm.Interactivity
         public static readonly DependencyProperty CommandNameProperty = DependencyProperty.Register(
             nameof(CommandName),
             typeof(string),
-            typeof(EventToCommand));
+            typeof(InvokeCommand));
         public string CommandName
         {
             get { return (string)GetValue(CommandNameProperty); }
@@ -60,7 +60,7 @@ namespace Golden.Mvvm.Interactivity
         public static readonly DependencyProperty SourceProperty = DependencyProperty.Register(
             nameof(Source),
             typeof(object),
-            typeof(EventToCommand));
+            typeof(InvokeCommand));
         public object Source
         {
             get { return GetValue(SourceProperty); }
@@ -70,7 +70,7 @@ namespace Golden.Mvvm.Interactivity
         public static readonly DependencyProperty CommandParameterProperty = DependencyProperty.Register(
             nameof(CommandParameter), 
             typeof(object), 
-            typeof(EventToCommand));
+            typeof(InvokeCommand));
         public object CommandParameter
         {
             get { return GetValue(CommandParameterProperty); }
@@ -80,7 +80,7 @@ namespace Golden.Mvvm.Interactivity
         public static readonly DependencyProperty EventArgsConverterProperty = DependencyProperty.Register(
             nameof(EventArgsConverter),
             typeof(IEventArgsConverter),
-            typeof(EventToCommand));
+            typeof(InvokeCommand));
         public IEventArgsConverter EventArgsConverter
         {
             get { return (IEventArgsConverter)GetValue(EventArgsConverterProperty); }
@@ -90,7 +90,7 @@ namespace Golden.Mvvm.Interactivity
         public static readonly DependencyProperty EventArgsConverterParameterProperty = DependencyProperty.Register(
             nameof(EventArgsConverterParameter),
             typeof(object),
-            typeof(EventToCommand));
+            typeof(InvokeCommand));
         public object EventArgsConverterParameter
         {
             get { return GetValue(EventArgsConverterParameterProperty); }

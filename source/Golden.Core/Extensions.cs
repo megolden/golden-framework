@@ -78,6 +78,11 @@
             if (args == null || args.Length == 0) return str;
             return string.Concat(new[] { str }.Concat(args));
         }
+        public static string Append(this string str, params object[] args)
+        {
+            if (args == null || args.Length == 0) return str;
+            return string.Concat(new[] { str }.Concat(args));
+        }
         public static string EmptyAsNull(this string str)
         {
             if (string.IsNullOrEmpty(str)) return null;
@@ -163,6 +168,10 @@
             }
             return string.Format(buffer.ToString(), fParams);
         }
+        public static string FormatWith(this string str, params object[] parameters)
+        {
+            return string.Format(str, parameters);
+        }
         public static string ToBase64(this string str)
         {
             return str.ToBase64(Encoding.UTF8);
@@ -186,15 +195,6 @@
             if (invariantCulture) options |= RegexOptions.CultureInvariant;
             if (singleLine) options |= RegexOptions.Singleline;
             return Regex.IsMatch(str, pattern, options);
-        }
-        public static string SurroundWith(this string str, char value)
-        {
-            return str.SurroundWith(value.ToString());
-        }
-        public static string SurroundWith(this string str, string value)
-        {
-            if (value.IsNullOrEmpty()) return str;
-            return string.Concat(value, str, value);
         }
     }
     public static class ReflectionExtensions
@@ -224,6 +224,10 @@
         public static bool IsDefined<T>(this ParameterInfo parameter, bool inherit = false) where T : System.Attribute
         {
             return parameter.IsDefined(typeof(T), inherit);
+        }
+        public static object CreateInstance(this Type type, params object[] args)
+        {
+            return Activator.CreateInstance(type, args);
         }
     }
     public static class DateTimeExtensions
@@ -363,10 +367,8 @@ namespace System.IO
         }
         public static string ReadAsString(this Stream stream, Encoding encoding, bool detectEncodingFromByteOrderMarks)
         {
-            using (var sr = new StreamReader(stream, encoding, detectEncodingFromByteOrderMarks))
-            {
-                return sr.ReadToEnd();
-            }
+            var sr = new StreamReader(stream, encoding, detectEncodingFromByteOrderMarks);
+            return sr.ReadToEnd();
         }
         public static void SaveToFile(this Stream stream, string filePath)
         {
@@ -394,6 +396,12 @@ namespace System.IO
         }
         public static string GetFileName(this string path)
         {
+            return path.GetFileName(false);
+        }
+        public static string GetFileName(this string path, bool withoutExtension)
+        {
+            if (withoutExtension)
+                return Path.GetFileNameWithoutExtension(path);
             return Path.GetFileName(path);
         }
         public static string GetDirectoryName(this string path)
@@ -419,6 +427,15 @@ namespace System.IO
         public static void WriteToFile(this string content, string filePath, Encoding encoding)
         {
             File.WriteAllText(filePath, content, encoding);
+        }
+        public static void WriteToStream(this string content, Stream stream)
+        {
+            content.WriteToStream(stream, Encoding.UTF8);
+        }
+        public static void WriteToStream(this string content, Stream stream, Encoding encoding)
+        {
+            var bytes = content.GetBytes(encoding);
+            stream.Write(bytes, 0, bytes.Length);
         }
         public static string GetFileContent(this string filePath)
         {
@@ -499,6 +516,7 @@ namespace System.Collections.Generic
         {
             return dictionary.GetValueOrDefault(key, default(TValue));
         }
+
     }
 }
 namespace System.Linq
@@ -509,6 +527,7 @@ namespace System.Linq
     using Text;
     using Golden;
     using ComponentModel;
+    using Security.Cryptography;
 
     public static class EnumerableExtensions
     {
@@ -530,6 +549,20 @@ namespace System.Linq
                 result.Append(b.ToString("x2"));
             }
             return result.ToString();
+        }
+        public static byte[] GetMD5Hash(this IEnumerable<byte> bytes)
+        {
+            using (var engine = MD5.Create())
+            {
+                return engine.ComputeHash(bytes.ToArray());
+            }
+        }
+        public static byte[] GetSHA1Hash(this IEnumerable<byte> bytes)
+        {
+            using (var engine = SHA1.Create())
+            {
+                return engine.ComputeHash(bytes.ToArray());
+            }
         }
         public static IEnumerable<Tuple<T, T>> Map<T>(this IEnumerable<T> first, IEnumerable<T> second, IEqualityComparer<T> comparer)
         {
@@ -1160,5 +1193,29 @@ namespace Golden.GoldenExtensions
         {
             return Utility.Utilities.IsIn(value, items);
         }
+        public static T ForValue<T>(this T value, Action<T> action)
+        {
+			if (!object.Equals(value, default(T)))
+                action.Invoke(value);
+            return value;
+        }
+        public static T ForValue<T>(this T value, Func<T, T> action)
+        {
+            if (!object.Equals(value, default(T)))
+                return action.Invoke(value);
+            return value;
+        }
+        /*
+        public static T ValueOrDefault<T>(this T value, Func<T> resolver)
+        {
+            if (object.Equals(value, default(T)))
+                return resolver.Invoke();
+            return value;
+        }
+        public static T ValueOrDefault<T>(this T value, T defaultValue)
+        {
+            return value.ValueOrDefault(() => defaultValue);
+        }
+		*/
     }
 }

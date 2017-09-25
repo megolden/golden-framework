@@ -9,12 +9,12 @@ using System.Windows.Interactivity;
 
 namespace Golden.Mvvm.Interactivity
 {
-    public sealed class EventToMethod : TriggerAction<DependencyObject>
+    public sealed class InvokeMethod : TriggerAction<DependencyObject>
     {
         public static readonly DependencyProperty PassEventArgsToMethodProperty = DependencyProperty.Register(
             nameof(PassEventArgsToMethod),
             typeof(bool),
-            typeof(EventToMethod),
+            typeof(InvokeMethod),
             new PropertyMetadata(false));
         public bool PassEventArgsToMethod
         {
@@ -25,7 +25,7 @@ namespace Golden.Mvvm.Interactivity
         public static readonly DependencyProperty MarkRoutedEventsAsHandledProperty = DependencyProperty.Register(
             nameof(MarkRoutedEventsAsHandled),
             typeof(bool),
-            typeof(EventToMethod),
+            typeof(InvokeMethod),
             new PropertyMetadata(false));
         public bool MarkRoutedEventsAsHandled
         {
@@ -36,7 +36,7 @@ namespace Golden.Mvvm.Interactivity
         public static readonly DependencyProperty MethodNameProperty = DependencyProperty.Register(
             nameof(MethodName),
             typeof(string),
-            typeof(EventToMethod));
+            typeof(InvokeMethod));
         public string MethodName
         {
             get { return (string)GetValue(MethodNameProperty); }
@@ -46,7 +46,7 @@ namespace Golden.Mvvm.Interactivity
         public static readonly DependencyProperty SourceProperty = DependencyProperty.Register(
             nameof(Source),
             typeof(object),
-            typeof(EventToMethod));
+            typeof(InvokeMethod));
         public object Source
         {
             get { return GetValue(SourceProperty); }
@@ -56,7 +56,7 @@ namespace Golden.Mvvm.Interactivity
         public static readonly DependencyProperty MethodParameterProperty = DependencyProperty.Register(
             nameof(MethodParameter), 
             typeof(object), 
-            typeof(EventToMethod));
+            typeof(InvokeMethod));
         public object MethodParameter
         {
             get { return GetValue(MethodParameterProperty); }
@@ -66,7 +66,7 @@ namespace Golden.Mvvm.Interactivity
         public static readonly DependencyProperty EventArgsConverterProperty = DependencyProperty.Register(
             nameof(EventArgsConverter),
             typeof(IEventArgsConverter),
-            typeof(EventToMethod));
+            typeof(InvokeMethod));
         public IEventArgsConverter EventArgsConverter
         {
             get { return (IEventArgsConverter)GetValue(EventArgsConverterProperty); }
@@ -76,7 +76,7 @@ namespace Golden.Mvvm.Interactivity
         public static readonly DependencyProperty EventArgsConverterParameterProperty = DependencyProperty.Register(
             nameof(EventArgsConverterParameter),
             typeof(object),
-            typeof(EventToMethod));
+            typeof(InvokeMethod));
         public object EventArgsConverterParameter
         {
             get { return GetValue(EventArgsConverterParameterProperty); }

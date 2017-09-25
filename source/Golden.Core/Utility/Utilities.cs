@@ -428,6 +428,10 @@ namespace Golden.Utility
             throw new InvalidCastException();
         }
         #endregion
+		public static object GetValueOrDBNull(object value)
+		{
+			return (value ?? DBNull.Value);
+		}
         public static bool CheckInternetConnection()
         {
             int desc;
@@ -439,30 +443,30 @@ namespace Golden.Utility
             Clone<T>(obj, ref newObj);
             return newObj;
         }
-        public static void Clone<T>(T obj, T newObj) where T : class
+        public static T Clone<T>(T source, T destination) where T : class
         {
-            Clone<T>(obj, ref newObj);
+            return Clone(source, ref destination);
         }
-        public static void Clone<T>(T obj, ref T newObj)
+        public static T Clone<T>(T source, ref T destination)
         {
             var type = typeof(T);
             if ((type.IsValueType && type.IsPrimitive) || type == typeof(string))
             {
-                newObj = obj;
-                return;
+                destination = source;
+                return destination;
             }
             if (type.IsClass || TypeHelper.IsStructure(type))
             {
                 var fields = type.GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
                 object value;
-                var refObj = __makeref(obj);
-                var refNewObj = __makeref(newObj);
+                var refObj = __makeref(source);
+                var refNewObj = __makeref(destination);
                 foreach (var field in fields)
                 {
                     value = field.GetValueDirect(refObj);
                     field.SetValueDirect(refNewObj, value);
                 }
-                return;
+                return destination;
             }
             throw new System.InvalidOperationException(string.Format("Can't clone object type '{0}'.", type.FullName));
         }

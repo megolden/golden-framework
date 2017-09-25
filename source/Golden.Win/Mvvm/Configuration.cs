@@ -125,6 +125,9 @@ namespace Golden.Mvvm.Configuration
         {
             if (!object.Equals(value, default(TProperty)))
             {
+                if (typeof(TProperty) == typeof(Type))
+                    throw new NotSupportedException($"A property with type '{typeof(Type).FullName}' can not has default value. please set it in 'Initialize' method.");
+
                 _DefaultValue = value;
                 _HasDefaultValue = true;
             }
@@ -224,7 +227,7 @@ namespace Golden.Mvvm.Configuration
         }
         #endregion
     }
-    public class ViewModelConfiguration<T> : IViewModelConfiguration where T : ViewModelBase
+    public class ViewModelConfiguration<T> : IViewModelConfiguration
     {
         private readonly Type _Type = typeof(T);
         private readonly Dictionary<string, IPropertyConfiguration> _Properties = new Dictionary<string, IPropertyConfiguration>(StringComparer.Ordinal);
@@ -401,6 +404,7 @@ namespace Golden.Mvvm.Configuration.Annotations
         }
         public Command(string name)
         {
+            this.Name = name;
         }
     }
 

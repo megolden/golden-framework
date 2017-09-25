@@ -200,22 +200,23 @@ namespace Golden.Mvvm
     }
 #endif
 
-    public abstract class ViewModelBase<TView> : ViewModelBase where TView : IView
-    {
-        private readonly TView _View;
+    //TODO: Remove these lines of code(using InteractionRequest<IMessageBox, IDialog, IFileDialog>)
+    //public abstract class ViewModelBase<TView> : ViewModelBase where TView : IView
+    //{
+    //    private readonly TView _View;
 
-        public virtual TView View
-        {
-            get { return _View; }
-        }
+    //    public virtual TView View
+    //    {
+    //        get { return _View; }
+    //    }
 
-        public ViewModelBase() : this(default(TView))
-        {
-        }
-        public ViewModelBase(TView view)
-        {
-            _View = view;
-            if (view != null) view.DataContext = this;
-        }
-    }
+    //    public ViewModelBase() : this(default(TView))
+    //    {
+    //    }
+    //    public ViewModelBase(TView view)
+    //    {
+    //        _View = view;
+    //        if (view != null) view.DataContext = this;
+    //    }
+    //}
 }
