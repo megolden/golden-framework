@@ -789,8 +789,7 @@ namespace System.Data.Entity
                 var tableInfo = MetadataMappingProvider.DefaultInstance.GetEntityMap(entityType, context);
                 var tableName = MetadataMappingProvider.QuoteIdentifier(tableInfo.TableName);
                 var paramList = new List<SqlParameter>();
-                var propValues = tableInfo.PropertyMaps
-                .Select(pm => new
+                var propValues = tableInfo.PropertyMaps.Select(pm => new
                 {
                     ColumnName = pm.ColumnName,
                     Property = e.Property(pm.PropertyName),
@@ -857,8 +856,7 @@ namespace System.Data.Entity
                 var tableInfo = MetadataMappingProvider.DefaultInstance.GetEntityMap(entityType, context);
                 var tableName = MetadataMappingProvider.QuoteIdentifier(tableInfo.TableName);
                 var paramList = new List<SqlParameter>();
-                var propValues = tableInfo.PropertyMaps.Where(pm=>pm.IsKey)
-                .Select(pm => new
+                var propValues = tableInfo.PropertyMaps.Where(pm => pm.IsKey).Select(pm => new
                 {
                     ColumnName = pm.ColumnName,
                     Value = e.Property(pm.PropertyName).OriginalValue
