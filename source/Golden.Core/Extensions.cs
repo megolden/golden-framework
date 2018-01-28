@@ -351,6 +351,7 @@ namespace System.IO
             }
             stream.Read(buffer, 0, buffer.Length);
             if (prevPos != -1) stream.Seek(prevPos, SeekOrigin.Begin);
+
             return buffer;
         }
         public static string ReadAsString(this Stream stream)
@@ -367,8 +368,17 @@ namespace System.IO
         }
         public static string ReadAsString(this Stream stream, Encoding encoding, bool detectEncodingFromByteOrderMarks)
         {
+            long prevPos = -1;
+            if (stream.CanSeek && stream.Position != 0)
+            {
+                prevPos = stream.Position;
+                stream.Seek(0, SeekOrigin.Begin);
+            }
             var sr = new StreamReader(stream, encoding, detectEncodingFromByteOrderMarks);
-            return sr.ReadToEnd();
+            var buffer = sr.ReadToEnd();
+            if (prevPos != -1) stream.Seek(prevPos, SeekOrigin.Begin);
+
+            return buffer;
         }
         public static void SaveToFile(this Stream stream, string filePath)
         {
