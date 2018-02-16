@@ -99,7 +99,34 @@ namespace Golden.Utility
 
 			return null;
 		}
-		public static bool IsEnumerable(Type type)
+        public static Type FindAssignable(Type type, Type baseType)
+        {
+            if (baseType.IsAssignableFrom(type)) return type;
+
+            var typeGenTypes = type.GetGenericArguments();
+            var genTypes = baseType.GetGenericArguments();
+            if (type.IsGenericType && typeGenTypes.Length >= genTypes.Length && baseType.MakeGenericType(typeGenTypes).IsAssignableFrom(type))
+                return type;
+
+            if (type.BaseType != null)
+            {
+                var tBaseType = FindAssignable(type.BaseType, baseType);
+                if (tBaseType != null) return tBaseType;
+            }
+
+            var ints = type.GetInterfaces();
+            if (ints.Length > 0)
+            {
+                foreach (var intf in ints)
+                {
+                    var intType = FindAssignable(intf, baseType);
+                    if (intType != null) return intType;
+                }
+            }
+
+            return null;
+        }
+        public static bool IsEnumerable(Type type)
 		{
 			return (FindIEnumerable(type) != null);
 		}
