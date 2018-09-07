@@ -526,7 +526,6 @@ namespace System.Collections.Generic
         {
             return dictionary.GetValueOrDefault(key, default(TValue));
         }
-
     }
 }
 namespace System.Linq
@@ -570,6 +569,20 @@ namespace System.Linq
         public static byte[] GetSHA1Hash(this IEnumerable<byte> bytes)
         {
             using (var engine = SHA1.Create())
+            {
+                return engine.ComputeHash(bytes.ToArray());
+            }
+        }
+        public static byte[] GetSHA256Hash(this IEnumerable<byte> bytes)
+        {
+            using (var engine = SHA256.Create())
+            {
+                return engine.ComputeHash(bytes.ToArray());
+            }
+        }
+        public static byte[] GetSHA512Hash(this IEnumerable<byte> bytes)
+        {
+            using (var engine = SHA512.Create())
             {
                 return engine.ComputeHash(bytes.ToArray());
             }
@@ -1203,17 +1216,16 @@ namespace Golden.GoldenExtensions
         {
             return Utility.Utilities.IsIn(value, items);
         }
-        public static T ForValue<T>(this T value, Action<T> action)
+        public static T Do<T>(this T value, Action<T> action)
         {
-			if (!object.Equals(value, default(T)))
-                action.Invoke(value);
+			//if (!object.Equals(value, default(T)))
+            action.Invoke(value);
             return value;
         }
-        public static T ForValue<T>(this T value, Func<T, T> action)
+        public static T Visit<T>(this T value, Func<T, T> action)
         {
-            if (!object.Equals(value, default(T)))
-                return action.Invoke(value);
-            return value;
+            //if (!object.Equals(value, default(T)))
+            return action.Invoke(value);
         }
         /*
         public static T ValueOrDefault<T>(this T value, Func<T> resolver)
