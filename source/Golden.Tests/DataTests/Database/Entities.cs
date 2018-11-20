@@ -90,9 +90,9 @@ namespace Golden.Tests
 		public virtual int? CityRef { get; set; }
 		public virtual DateTime? BirthDate { get; set; }
 		public virtual City City { get; set; }
-	}
+    }
 
-	public partial class City
+    public partial class City
 	{
 		public virtual int Id { get; set; }
 		public virtual string Name { get; set; }
