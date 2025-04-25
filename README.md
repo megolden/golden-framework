@@ -1,7 +1,3 @@
-![Deprecated](https://img.shields.io/badge/status-deprecated-red)
-
-> ⚠️ **DEPRECATED**: This repository is no longer maintained. It is kept for archival purposes only.
-
 # GoldenFramework
 A .net framework library that contains some useful components.
 
